@@ -53,10 +53,41 @@ fn launch_game(game_path: &str, realsid: &str, language: i32, dx11: bool, expans
     }
 }
 
+
 fn generate_user_agent() -> String {
-    format!(USER_AGENT_TEMPLATE, "some_unique_identifier")
+    let computer_id = make_computer_id();
+    format!(USER_AGENT_TEMPLATE, computer_id)
 }
 
+fn make_computer_id() -> String {
+    let machine_name = get_machine_name();
+    let user_name = env::var("USERNAME").unwrap_or_default();
+    let os_version = "Windows 10.0"; // Example, replace with actual OS version retrieval
+    let processor_count = num_cpus::get();
+
+    let hash_string = format!("{}{}{}{}", machine_name, user_name, os_version, processor_count);
+    let mut hasher = Sha1::new();
+    hasher.update(hash_string.as_bytes());
+    let hash_bytes = hasher.finalize();
+
+    let mut bytes = [0u8; 5];
+    bytes[1..].copy_from_slice(&hash_bytes[0..4]);
+
+    let check_sum = !(bytes[1].wrapping_add(bytes[2]).wrapping_add(bytes[3]).wrapping_add(bytes[4]));
+    bytes[0] = check_sum;
+
+    bytes.iter().map(|byte| format!("{:02x}", byte)).collect::<Vec<_>>().join("")
+}
+
+fn get_machine_name() -> String {
+    // Placeholder for machine name retrieval logic
+    // This could be a hostname or an IP address, depending on your needs
+    // For example, using the local IP address as a machine name:
+    match local_ipaddress::get() {
+        Some(ip) => ip,
+        None => "unknown".to_string(),
+    }
+}
 fn get_real_sid(game_path: &str, username: &str, password: &str, otp: Option<&str>, is_steam: bool) -> String {
     let mut hash_str = String::new();
 
