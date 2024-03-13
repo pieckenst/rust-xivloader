@@ -192,10 +192,22 @@ fn get_local_gamever(game_path: &str) -> Result<String, Box<dyn std::error::Erro
     file.read_to_string(&mut contents)?;
     Ok(contents.trim().to_string())
 }
-
-// Placeholder for SSL trust initiation
-fn initiate_ssl_trust() {
-    // SSL trust initiation logic...
+// Function to get the gate status
+pub fn get_gate_status() -> Result<bool, Box<dyn std::error::Error>> {
+    let client = Client::new();
+    let reply = client.get("http://frontier.ffxiv.com/worldStatus/gate_status.json").send()?.text()?;
+    Ok(reply.chars().nth(10).unwrap().to_digit(10).unwrap() == 1)
 }
 
-// Remember to add the sha1 and lazy_static dependencies to your Cargo.toml
+fn initiate_ssl_trust() -> Client {
+    let mut ssl = SslConnector::builder(SslMethod::tls()).unwrap();
+    ssl.set_verify(SslVerifyMode::NONE);
+    let ssl = ssl.build();
+    let client = ClientBuilder::new()
+        .use_preconfigured_tls(ssl)
+        .build()
+        .unwrap();
+    client
+}
+
+
