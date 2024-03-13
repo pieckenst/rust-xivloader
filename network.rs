@@ -88,11 +88,30 @@ fn get_machine_name() -> String {
         None => "unknown".to_string(),
     }
 }
-fn get_real_sid(game_path: &str, username: &str, password: &str, otp: Option<&str>, is_steam: bool) -> String {
-    let mut hash_str = String::new();
+fn generate_hash(file_path: &str) -> io::Result<String> {
+    let mut file = fs::File::open(file_path)?;
+    let mut buffer = Vec::new();
+    file.read_to_end(&mut buffer)?;
+    let mut hasher = Sha1::new();
+    hasher.update(&buffer);
+    let hash = hasher.finalize();
+    let hash_str = hash.iter().map(|byte| format!("{:02x}", byte)).collect::<String>();
+    let length = buffer.len() as u64;
+    Ok(format!("{}/{}", length, hash_str))
+}
 
-    // Hashing files to prove game version
-    let files_to_hash = [
+// Function to get the real SID
+pub fn get_real_sid(game_path: &str, username: &str, password: &str, otp: &str, is_steam: bool) -> Result<String, Box<dyn std::error::Error>> {
+    let mut hash_str = String::new();
+    // Assuming the existence of a function to get the local game version and SID
+    let local_game_ver = get_local_gamever(game_path)?;
+    let local_sid = get_sid(username, password, otp, is_steam)?;
+
+    if local_game_ver == "BAD" || local_sid == "BAD" {
+        return Ok("BAD".to_string());
+    }
+
+    let file_paths = [
         "ffxivboot.exe",
         "ffxivboot64.exe",
         "ffxivlauncher.exe",
@@ -101,26 +120,28 @@ fn get_real_sid(game_path: &str, username: &str, password: &str, otp: Option<&st
         "ffxivupdater64.exe",
     ];
 
-    for file in files_to_hash.iter() {
-        match generate_hash(format!("{}/boot/{}", game_path, file)) {
-            Ok(hash) => hash_str.push_str(&format!("{}/{},", file, hash)),
+    for file in file_paths.iter() {
+        let file_path = format!("{}/boot/{}", game_path, file);
+        match generate_hash(&file_path) {
+            Ok(hash) => hash_str.push_str(&format!("{}/{}", file, hash)),
             Err(e) => eprintln!("Could not generate hashes. Is your game path correct? {}", e),
         }
     }
 
-    // Truncate the last comma
-    hash_str.pop();
+    let client = Client::new();
+    let mut headers = HeaderMap::new();
+    headers.insert("X-Hash-Check", HeaderValue::from_static("enabled"));
+    headers.insert(USER_AGENT, HeaderValue::from_static("Your User Agent"));
+    headers.insert("Referer", HeaderValue::from_static("https://ffxiv-login.square-enix.com/oauth/ffxivarr/login/top?lng=en&rgn=3"));
+    headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/x-www-form-urlencoded"));
 
-    // Rest of the network logic would go here...
+    // Assuming the existence of a function to initiate SSL trust
+    initiate_ssl_trust();
 
-    hash_str
-}
+    let url = format!("https://patch-gamever.ffxiv.com/http/win32/ffxivneo_release_game/{}/{}", local_game_ver, local_sid);
+    let response = client.post(&url).headers(headers).body(hash_str).send()?;
 
-fn generate_hash(file_path: String) -> io::Result<String> {
-    let data = fs::read(file_path)?;
-    let mut hasher = Sha1::new();
-    hasher.update(data);
-    Ok(format!("{:x}", hasher.finalize()))
+    Ok(response.headers().get("X-Patch-Unique-Id").unwrap().to_str()?.to_string())
 }
 fn get_stored(is_steam: bool) -> Result<String, Box<dyn std::error::Error>> {
     let client = Client::new();
