@@ -1,0 +1,858 @@
+<body data-sveltekit-preload-data="hover">
+		<div style="display: contents">
+			<script>
+				{
+					__sveltekit_biq1sm = {
+						base: ""
+					};
+
+					const element = document.currentScript.parentElement;
+
+					Promise.all([
+						import("/_app/immutable/entry/start.DRtco1_P.js"),
+						import("/_app/immutable/entry/app.l3GTMryJ.js")
+					]).then(([kit, app]) => {
+						kit.start(app, element);
+					});
+				}
+			</script>
+		<!----><!----><!----><!----><div class="flex h-screen w-screen flex-col items-center justify-center gap-2"><div class="bg-card text-card-foreground rounded-lg border shadow-sm max-h-[800px] min-h-[480px] w-[800px] flex flex-col"><!----><div class="space-y-1.5 p-6 pb-0 flex flex-row items-center justify-between"><div><div role="heading" aria-level="3" class="text-lg font-semibold leading-none tracking-tight flex flex-row items-center gap-2">Terbium <!----><span class="focus:ring-ring inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 text-foreground"><!---->20241215.1</span><!----><!----></div><!----> <p class="text-muted-foreground text-sm">The easiest way to flash your Car Thing.<!----></p><!----></div> <div class="flex flex-row items-center gap-2"><!----><a class="ring-offset-background focus-visible:ring-ring inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 border-input bg-background hover:bg-accent hover:text-accent-foreground border h-10 w-10" href="https://addi.lol/donate" target="_blank"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide-icon lucide lucide-heart h-4 w-4 animate-pulse text-pink-500" data-darkreader-inline-stroke="" style="--darkreader-inline-stroke: currentColor;"><!----><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path><!----><!----><!----></svg><!----></a><!----></div><!----></div><!----> <div class="p-6 flex max-h-full flex-grow overflow-hidden pt-2"><!----><!----><!----><div class="bg-card text-card-foreground rounded-lg border shadow-sm relative flex flex-grow flex-col"><!----><div class="p-6 flex flex-grow flex-col items-center justify-center gap-2"><!----><svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5;" viewBox="15.55 10.22 1174.89 624.25" class="w-56"><g><path id="ctsvgb4" d="M847.616,14.189l-0,4.664c-0,1.287 -1.045,2.332 -2.332,2.332l-83.434,-0c-1.287,-0 -2.332,-1.045 -2.332,-2.332l-0,-4.664c-0,-1.287 1.045,-2.332 2.332,-2.332l83.434,-0c1.287,-0 2.332,1.045 2.332,2.332Z" class="fill-current stroke-current stroke-[30] "></path><path id="ctsvgb3" d="M637.217,14.189l0,4.664c0,1.287 -1.045,2.332 -2.332,2.332l-83.434,-0c-1.287,-0 -2.332,-1.045 -2.332,-2.332l0,-4.664c0,-1.287 1.045,-2.332 2.332,-2.332l83.434,-0c1.287,-0 2.332,1.045 2.332,2.332Z" class="fill-current stroke-current stroke-[30] "></path><path id="ctsvgb2" d="M429.928,14.189l-0,4.664c-0,1.287 -1.045,2.332 -2.332,2.332l-83.434,-0c-1.287,-0 -2.332,-1.045 -2.332,-2.332l-0,-4.664c-0,-1.287 1.045,-2.332 2.332,-2.332l83.434,-0c1.287,-0 2.332,1.045 2.332,2.332Z" class="fill-current stroke-current stroke-[30] "></path><path id="ctsvgb1" d="M223.675,14.189l-0,4.664c-0,1.287 -1.045,2.332 -2.332,2.332l-83.434,-0c-1.287,-0 -2.332,-1.045 -2.332,-2.332l-0,-4.664c-0,-1.287 1.045,-2.332 2.332,-2.332l83.434,-0c1.287,-0 2.332,1.045 2.332,2.332Z" class="fill-current stroke-current stroke-[30] "></path><path d="M1133.67,362.04l0,228.55c0,19.764 -16.045,35.81 -35.809,35.81l-1038.42,-0c-19.764,-0 -35.81,-16.046 -35.81,-35.81l0,-532.63c0,-19.764 16.046,-35.809 35.81,-35.809l1038.42,-0c19.764,-0 35.809,16.045 35.809,35.809l0,68.938c30.092,30.108 48.713,71.682 48.713,117.571c0,45.889 -18.621,87.463 -48.713,117.571Zm-12.437,-246.399l0,-57.681c0,-12.899 -10.473,-23.372 -23.372,-23.372l-1038.42,0c-12.9,0 -23.372,10.473 -23.372,23.372l-0,532.63c-0,12.9 10.472,23.372 23.372,23.372l1038.42,0c12.899,0 23.372,-10.472 23.372,-23.372l0,-217.294c-28.673,23.449 -65.306,37.523 -105.199,37.523c-41.381,-0 -79.254,-15.143 -108.373,-40.184l-0,175.773c-0,17.046 -13.84,30.886 -30.886,30.886l-776.705,-0c-17.047,-0 -30.886,-13.84 -30.886,-30.886l-0,-444.004c-0,-17.047 13.839,-30.886 30.886,-30.886l776.705,-0c17.046,-0 30.886,13.839 30.886,30.886l-0,15.899c29.119,-25.042 66.992,-40.184 108.373,-40.184c39.893,-0 76.526,14.073 105.199,37.522Zm-226.01,243.136c-28.222,-29.815 -45.539,-70.055 -45.539,-114.308c-0,-44.253 17.317,-84.494 45.539,-114.309l0,-27.756c0,-10.182 -8.266,-18.449 -18.448,-18.449l-776.705,0c-10.182,0 -18.449,8.267 -18.449,18.449l0,444.004c0,10.182 8.267,18.448 18.449,18.448l776.705,0c10.182,0 18.448,-8.266 18.448,-18.448l0,-187.631Zm120.811,-268.221c-84.947,0 -153.913,68.966 -153.913,153.913c0,84.946 68.966,153.912 153.913,153.912c84.946,0 153.912,-68.966 153.912,-153.912c0,-84.947 -68.966,-153.913 -153.912,-153.913Zm-0,362.757c29.745,-0 53.895,24.15 53.895,53.895c-0,29.746 -24.15,53.895 -53.895,53.895c-29.746,0 -53.896,-24.149 -53.896,-53.895c0,-29.745 24.15,-53.895 53.896,-53.895Zm-0,12.437c-22.882,0 -41.458,18.577 -41.458,41.458c-0,22.881 18.576,41.458 41.458,41.458c22.881,0 41.458,-18.577 41.458,-41.458c-0,-22.881 -18.577,-41.458 -41.458,-41.458Z" style="fill: currentcolor; stroke: currentcolor; stroke-width: 6.67px; stroke-linecap: butt; stroke-miterlimit: 2; --darkreader-inline-fill: currentcolor; --darkreader-inline-stroke: currentcolor;" data-darkreader-inline-fill="" data-darkreader-inline-stroke=""></path></g></svg><!----> <div class="flex flex-col items-center justify-center"><h1>Welcome to Terbium</h1> <h2>Click <b>Next</b> to initialize.</h2></div><!----></div><!----> <div class="p-6 pt-0 absolute bottom-0 right-0 flex w-full flex-row items-center justify-between gap-2"><!----><!----><button class="ring-offset-background focus-visible:ring-ring inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 border-input bg-background hover:bg-accent hover:text-accent-foreground border h-10 px-4 py-2" type="button"><!----><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide-icon lucide lucide-info h-4 w-4" data-darkreader-inline-stroke="" style="--darkreader-inline-stroke: currentColor;"><!----><circle cx="12" cy="12" r="10"></circle><!----><path d="M12 16v-4"></path><!----><path d="M12 8h.01"></path><!----><!----><!----></svg><!----> Troubleshooting<!----></button><!----> <div class="flex flex-row items-center gap-2"><!----><!----><!----><!----><!----><button class="ring-offset-background focus-visible:ring-ring inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 bg-secondary text-secondary-foreground hover:bg-secondary/80 h-10 px-4 py-2" id="bits-1" aria-haspopup="dialog" aria-expanded="false" data-state="closed" data-popover-trigger="" disabled="" type="button"><!----><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide-icon lucide lucide-download" data-darkreader-inline-stroke="" style="--darkreader-inline-stroke: currentColor;"><!----><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><!----><polyline points="7 10 12 15 17 10"></polyline><!----><line x1="12" x2="12" y1="15" y2="3"></line><!----><!----><!----></svg><!----> Desktop<!----></button><!----> <!----><!----><!----><!----> <!----><button class="ring-offset-background focus-visible:ring-ring inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2" type="button">Next<!----></button><!----></div><!----></div><!----><!----></div><!----></div><!----><!----></div><!----></div> <!----><!----><!----><!----><!----><!----> <div id="svelte-announcer" aria-live="assertive" aria-atomic="true" style="position: absolute; left: 0; top: 0; clip: rect(0 0 0 0); clip-path: inset(50%); overflow: hidden; white-space: nowrap; width: 1px; height: 1px"><!----></div><!----></div>
+	
+
+<div id="letmefix-browser-content-view-root" style="position: fixed; top: 0px; left: 0px; z-index: 2147483647; display: block;"></div><!----><!----><!----><!----><!----><!----><!----><!----><!----><!----><!----><!----> <!----><!----></body>
+
+<body data-sveltekit-preload-data="hover">
+		<div style="display: contents">
+			<script>
+				{
+					__sveltekit_biq1sm = {
+						base: ""
+					};
+
+					const element = document.currentScript.parentElement;
+
+					Promise.all([
+						import("/_app/immutable/entry/start.DRtco1_P.js"),
+						import("/_app/immutable/entry/app.l3GTMryJ.js")
+					]).then(([kit, app]) => {
+						kit.start(app, element);
+					});
+				}
+			</script>
+		<!----><!----><!----><!----><div class="flex h-screen w-screen flex-col items-center justify-center gap-2"><div class="bg-card text-card-foreground rounded-lg border shadow-sm max-h-[800px] min-h-[480px] w-[800px] flex flex-col"><!----><div class="space-y-1.5 p-6 pb-0 flex flex-row items-center justify-between"><div><div role="heading" aria-level="3" class="text-lg font-semibold leading-none tracking-tight flex flex-row items-center gap-2">Terbium <!----><span class="focus:ring-ring inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 text-foreground"><!---->20241215.1</span><!----><!----></div><!----> <p class="text-muted-foreground text-sm">The easiest way to flash your Car Thing.<!----></p><!----></div> <div class="flex flex-row items-center gap-2"><!----><a class="ring-offset-background focus-visible:ring-ring inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 border-input bg-background hover:bg-accent hover:text-accent-foreground border h-10 w-10" href="https://addi.lol/donate" target="_blank"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide-icon lucide lucide-heart h-4 w-4 animate-pulse text-pink-500" data-darkreader-inline-stroke="" style="--darkreader-inline-stroke: currentColor;"><!----><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path><!----><!----><!----></svg><!----></a><!----></div><!----></div><!----> <div class="p-6 flex max-h-full flex-grow overflow-hidden pt-2"><!----><!----><!----><div class="bg-card text-card-foreground rounded-lg border shadow-sm relative flex flex-grow flex-col"><!----><div class="p-6 flex flex-grow flex-col items-center justify-center gap-2"><!----><svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5;" viewBox="15.55 10.22 1174.89 624.25" class="w-56"><g><path id="ctsvgb4" d="M847.616,14.189l-0,4.664c-0,1.287 -1.045,2.332 -2.332,2.332l-83.434,-0c-1.287,-0 -2.332,-1.045 -2.332,-2.332l-0,-4.664c-0,-1.287 1.045,-2.332 2.332,-2.332l83.434,-0c1.287,-0 2.332,1.045 2.332,2.332Z" class="fill-current stroke-current stroke-[30] "></path><path id="ctsvgb3" d="M637.217,14.189l0,4.664c0,1.287 -1.045,2.332 -2.332,2.332l-83.434,-0c-1.287,-0 -2.332,-1.045 -2.332,-2.332l0,-4.664c0,-1.287 1.045,-2.332 2.332,-2.332l83.434,-0c1.287,-0 2.332,1.045 2.332,2.332Z" class="fill-current stroke-current stroke-[30] "></path><path id="ctsvgb2" d="M429.928,14.189l-0,4.664c-0,1.287 -1.045,2.332 -2.332,2.332l-83.434,-0c-1.287,-0 -2.332,-1.045 -2.332,-2.332l-0,-4.664c-0,-1.287 1.045,-2.332 2.332,-2.332l83.434,-0c1.287,-0 2.332,1.045 2.332,2.332Z" class="fill-current stroke-current stroke-[30] "></path><path id="ctsvgb1" d="M223.675,14.189l-0,4.664c-0,1.287 -1.045,2.332 -2.332,2.332l-83.434,-0c-1.287,-0 -2.332,-1.045 -2.332,-2.332l-0,-4.664c-0,-1.287 1.045,-2.332 2.332,-2.332l83.434,-0c1.287,-0 2.332,1.045 2.332,2.332Z" class="fill-current stroke-current stroke-[30] "></path><path d="M1133.67,362.04l0,228.55c0,19.764 -16.045,35.81 -35.809,35.81l-1038.42,-0c-19.764,-0 -35.81,-16.046 -35.81,-35.81l0,-532.63c0,-19.764 16.046,-35.809 35.81,-35.809l1038.42,-0c19.764,-0 35.809,16.045 35.809,35.809l0,68.938c30.092,30.108 48.713,71.682 48.713,117.571c0,45.889 -18.621,87.463 -48.713,117.571Zm-12.437,-246.399l0,-57.681c0,-12.899 -10.473,-23.372 -23.372,-23.372l-1038.42,0c-12.9,0 -23.372,10.473 -23.372,23.372l-0,532.63c-0,12.9 10.472,23.372 23.372,23.372l1038.42,0c12.899,0 23.372,-10.472 23.372,-23.372l0,-217.294c-28.673,23.449 -65.306,37.523 -105.199,37.523c-41.381,-0 -79.254,-15.143 -108.373,-40.184l-0,175.773c-0,17.046 -13.84,30.886 -30.886,30.886l-776.705,-0c-17.047,-0 -30.886,-13.84 -30.886,-30.886l-0,-444.004c-0,-17.047 13.839,-30.886 30.886,-30.886l776.705,-0c17.046,-0 30.886,13.839 30.886,30.886l-0,15.899c29.119,-25.042 66.992,-40.184 108.373,-40.184c39.893,-0 76.526,14.073 105.199,37.522Zm-226.01,243.136c-28.222,-29.815 -45.539,-70.055 -45.539,-114.308c-0,-44.253 17.317,-84.494 45.539,-114.309l0,-27.756c0,-10.182 -8.266,-18.449 -18.448,-18.449l-776.705,0c-10.182,0 -18.449,8.267 -18.449,18.449l0,444.004c0,10.182 8.267,18.448 18.449,18.448l776.705,0c10.182,0 18.448,-8.266 18.448,-18.448l0,-187.631Zm120.811,-268.221c-84.947,0 -153.913,68.966 -153.913,153.913c0,84.946 68.966,153.912 153.913,153.912c84.946,0 153.912,-68.966 153.912,-153.912c0,-84.947 -68.966,-153.913 -153.912,-153.913Zm-0,362.757c29.745,-0 53.895,24.15 53.895,53.895c-0,29.746 -24.15,53.895 -53.895,53.895c-29.746,0 -53.896,-24.149 -53.896,-53.895c0,-29.745 24.15,-53.895 53.896,-53.895Zm-0,12.437c-22.882,0 -41.458,18.577 -41.458,41.458c-0,22.881 18.576,41.458 41.458,41.458c22.881,0 41.458,-18.577 41.458,-41.458c-0,-22.881 -18.577,-41.458 -41.458,-41.458Z" style="fill: currentcolor; stroke: currentcolor; stroke-width: 6.67px; stroke-linecap: butt; stroke-miterlimit: 2; --darkreader-inline-fill: currentcolor; --darkreader-inline-stroke: currentcolor;" data-darkreader-inline-fill="" data-darkreader-inline-stroke=""></path></g></svg><!----> <div class="flex flex-col items-center justify-center"><h1>Welcome to Terbium</h1> <h2>Click <b>Next</b> to initialize.</h2></div><!----></div><!----> <div class="p-6 pt-0 absolute bottom-0 right-0 flex w-full flex-row items-center justify-between gap-2"><!----><!----><button class="ring-offset-background focus-visible:ring-ring inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 border-input bg-background hover:bg-accent hover:text-accent-foreground border h-10 px-4 py-2" type="button"><!----><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide-icon lucide lucide-info h-4 w-4" data-darkreader-inline-stroke="" style="--darkreader-inline-stroke: currentColor;"><!----><circle cx="12" cy="12" r="10"></circle><!----><path d="M12 16v-4"></path><!----><path d="M12 8h.01"></path><!----><!----><!----></svg><!----> Troubleshooting<!----></button><!----> <div class="flex flex-row items-center gap-2"><!----><!----><!----><!----><!----><button class="ring-offset-background focus-visible:ring-ring inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 bg-secondary text-secondary-foreground hover:bg-secondary/80 h-10 px-4 py-2" id="bits-1" aria-haspopup="dialog" aria-expanded="false" data-state="closed" data-popover-trigger="" disabled="" type="button"><!----><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide-icon lucide lucide-download" data-darkreader-inline-stroke="" style="--darkreader-inline-stroke: currentColor;"><!----><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><!----><polyline points="7 10 12 15 17 10"></polyline><!----><line x1="12" x2="12" y1="15" y2="3"></line><!----><!----><!----></svg><!----> Desktop<!----></button><!----> <!----><!----><!----><!----> <!----><button class="ring-offset-background focus-visible:ring-ring inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2" type="button">Next<!----></button><!----></div><!----></div><!----><!----></div><!----></div><!----><!----></div><!----></div> <!----><!----><!----><!----><!----><!----> <div id="svelte-announcer" aria-live="assertive" aria-atomic="true" style="position: absolute; left: 0; top: 0; clip: rect(0 0 0 0); clip-path: inset(50%); overflow: hidden; white-space: nowrap; width: 1px; height: 1px"><!----></div><!----></div>
+	
+
+<div id="letmefix-browser-content-view-root" style="position: fixed; top: 0px; left: 0px; z-index: 2147483647; display: block;"></div><!----><!----><!----><!----><!----><!----><!----><!----><!----><!----><!----><!----> <!----><!----></body>
+﻿@page "/counter"
+@page "/counter/{Section}"
+
+@inject NavigationManager navigationManager
+@inject IJSRuntime jsRuntime
+@inject MasaBlazor MasaBlazor
+@using System.Security.Cryptography;
+@using AKSoftware.Blazor.Utilities
+
+<PageTitle>FFXIV Login</PageTitle>
+
+<MContainer Fluid>
+    <div class="game-header">
+        <MImage Src="https://img.finalfantasyxiv.com/lds/h/V/U5TjBZoXVbddg1ZB7H4k0fkYqo.jpg" 
+                Height="600" 
+                Style="position: relative;">
+            <div class="header-content d-flex align-center">
+                <div class="flex-grow-1">
+                    <h1 class="text-h2">Final Fantasy XIV</h1>
+                    <div class="text-subtitle-1">Status: @statusstring</div>
+                </div>
+                <MSpacer></MSpacer>
+                @if (!MasaBlazor.Breakpoint.Mobile)
+                {
+                    <MCard Class="play-card">
+                        <MButton Color="primary"
+                                OnClick="processinputsx"
+                                XLarge
+                                Class="play-button">
+                            Play Now
+                        </MButton>
+                        <MButton Icon
+                                Class="settings-button"
+                                OnClick="ModalShow">
+                            <MIcon>mdi-cog</MIcon>
+                        </MButton>
+                    </MCard>
+                }
+            </div>
+        </MImage>
+    </div>
+
+
+    <div class="section-wrapper"><section  id="overview" class="section-content"><MRow Class="mt-6">
+            <MCol Cols="12" Md="8">
+                <MCard Class="pa-6 mb-6">
+                    <div class="text-h4 mb-4">About Final Fantasy XIV</div>
+                    <p class="text-body-1">
+                        Take part in an epic and ever-changing FINAL FANTASY as you adventure and explore with friends from around the world. Experience all the hallmarks of the best-selling franchise - airships, chocobos, moogles, and more.
+                    </p>
+                    <p class="text-body-1 mt-4">
+                        Embark on the adventure of a lifetime in a Final Fantasy that never ends. Join millions of adventurers in Eorzea, a realm reborn, and forge your legend in a tale that spans dimensions and generations.
+                    </p>
+                </MCard>
+
+                <MCard Class="pa-6 mb-6">
+                    <div class="text-h4 mb-4">Latest Expansion: Dawntrail</div>
+                    <p class="text-body-1">
+                        Journey to the New World in the latest expansion. Explore vibrant new lands, master new jobs, and continue your adventure in a story that will take you to the farthest reaches of Eorzea and beyond.
+                    </p>
+                </MCard>
+            </MCol>
+        </MRow> </section>
+
+        <section id="characters" class="section-content">
+        <MRow Class="mt-6">
+            <MCol Cols="12">
+                <MCard Class="pa-6 mb-6">
+                    <div class="text-h4 mb-4">Playable Races</div>
+                    <MRow>
+                        <MCol Cols="12" Md="4">
+                            <div class="text-h6 mb-2">Hyur</div>
+                            <p>The most numerous of the civilized races in Eorzea.</p>
+                        </MCol>
+                        <MCol Cols="12" Md="4">
+                            <div class="text-h6 mb-2">Miqo'te</div>
+                            <p>A feline race from the forgotten continents of Meracydia.</p>
+                        </MCol>
+                        <MCol Cols="12" Md="4">
+                            <div class="text-h6 mb-2">Au Ra</div>
+                            <p>A scaled race from the Far Eastern continent of Othard.</p>
+                        </MCol>
+                    </MRow>
+                </MCard>
+            </MCol>
+        </MRow>
+    </section>
+
+    <section id="story" class="section-content">
+        <MRow Class="mt-6">
+            <MCol Cols="12">
+                <MCard Class="pa-6 mb-6">
+                    <div class="text-h4 mb-4">Epic Narrative</div>
+                    <p class="text-body-1">
+                        Experience an epic story spanning multiple expansions:
+                    </p>
+                    <MList>
+                        <MListItem>
+                            <MListItemTitle>A Realm Reborn - The beginning of your journey</MListItemTitle>
+                        </MListItem>
+                        <MListItem>
+                            <MListItemTitle>Heavensward - The dragon song war</MListItemTitle>
+                        </MListItem>
+                        <MListItem>
+                            <MListItemTitle>Stormblood - Liberation of Ala Mhigo</MListItemTitle>
+                        </MListItem>
+                        <MListItem>
+                            <MListItemTitle>Shadowbringers - Journey to the First</MListItemTitle>
+                        </MListItem>
+                        <MListItem>
+                            <MListItemTitle>Endwalker - The final days</MListItemTitle>
+                        </MListItem>
+                        <MListItem>
+                            <MListItemTitle>Dawntrail - New adventures await</MListItemTitle>
+                        </MListItem>
+                    </MList>
+                </MCard>
+            </MCol>
+        </MRow>
+    </section>
+
+    <section id="classes" class="section-content">
+        <MRow Class="mt-6">
+            <MCol Cols="12">
+                <MCard Class="pa-6 mb-6">
+                    <div class="text-h4 mb-4">Available Jobs</div>
+                    <MRow>
+                        <MCol Cols="12" Md="4">
+                            <div class="text-h6 mb-2">Tank Roles</div>
+                            <MList Dense>
+                                <MListItem>
+                                    <MListItemTitle>Paladin</MListItemTitle>
+                                </MListItem>
+                                <MListItem>
+                                    <MListItemTitle>Warrior</MListItemTitle>
+                                </MListItem>
+                                <MListItem>
+                                    <MListItemTitle>Dark Knight</MListItemTitle>
+                                </MListItem>
+                                <MListItem>
+                                    <MListItemTitle>Gunbreaker</MListItemTitle>
+                                </MListItem>
+                            </MList>
+                        </MCol>
+                        <MCol Cols="12" Md="4">
+                            <div class="text-h6 mb-2">Healer Roles</div>
+                            <MList Dense>
+                                <MListItem>
+                                    <MListItemTitle>White Mage</MListItemTitle>
+                                </MListItem>
+                                <MListItem>
+                                    <MListItemTitle>Scholar</MListItemTitle>
+                                </MListItem>
+                                <MListItem>
+                                    <MListItemTitle>Astrologian</MListItemTitle>
+                                </MListItem>
+                                <MListItem>
+                                    <MListItemTitle>Sage</MListItemTitle>
+                                </MListItem>
+                            </MList>
+                        </MCol>
+                        <MCol Cols="12" Md="4">
+                            <div class="text-h6 mb-2">DPS Roles</div>
+                            <MList Dense>
+                                <MListItem>
+                                    <MListItemTitle>Monk</MListItemTitle>
+                                </MListItem>
+                                <MListItem>
+                                    <MListItemTitle>Dragoon</MListItemTitle>
+                                </MListItem>
+                                <MListItem>
+                                    <MListItemTitle>Ninja</MListItemTitle>
+                                </MListItem>
+                                <MListItem>
+                                    <MListItemTitle>Samurai</MListItemTitle>
+                                </MListItem>
+                            </MList>
+                        </MCol>
+                    </MRow>
+                </MCard>
+            </MCol>
+        </MRow>
+    </section>
+
+    <section id="world" class="section-content">
+        <MRow Class="mt-6">
+            <MCol Cols="12">
+                <MCard Class="pa-6 mb-6">
+                    <div class="text-h4 mb-4">The World of Hydaelyn</div>
+                    <MRow>
+                        <MCol Cols="12" Md="6">
+                            <div class="text-h6 mb-2">Eorzea</div>
+                            <p>The realm where most of your adventures take place, comprising city-states:</p>
+                            <MList Dense>
+                                <MListItem>
+                                    <MListItemTitle>Gridania - The forest nation</MListItemTitle>
+                                </MListItem>
+                                <MListItem>
+                                    <MListItemTitle>Ul'dah - The desert metropolis</MListItemTitle>
+                                </MListItem>
+                                <MListItem>
+                                    <MListItemTitle>Limsa Lominsa - The maritime city-state</MListItemTitle>
+                                </MListItem>
+                            </MList>
+                        </MCol>
+                        <MCol Cols="12" Md="6">
+                            <div class="text-h6 mb-2">Other Regions</div>
+                            <MList Dense>
+                                <MListItem>
+                                    <MListItemTitle>Ishgard - The holy see</MListItemTitle>
+                                </MListItem>
+                                <MListItem>
+                                    <MListItemTitle>Doma - The far eastern kingdom</MListItemTitle>
+                                </MListItem>
+                                <MListItem>
+                                    <MListItemTitle>Garlemald - The imperial capital</MListItemTitle>
+                                </MListItem>
+                            </MList>
+                        </MCol>
+                    </MRow>
+                </MCard>
+            </MCol>
+        </MRow>
+    </section>
+
+    <section id="features" class="section-content">
+        <MRow Class="mt-6">
+            <MCol Cols="12">
+                <MCard Class="pa-6 mb-6">
+                    <div class="text-h4 mb-4">Game Features</div>
+                    <MRow>
+                        <MCol Cols="12" Md="4">
+                            <div class="text-h6 mb-2">PvE Content</div>
+                            <MList Dense>
+                                <MListItem>
+                                    <MListItemTitle>Dungeons</MListItemTitle>
+                                </MListItem>
+                                <MListItem>
+                                    <MListItemTitle>Raids</MListItemTitle>
+                                </MListItem>
+                                <MListItem>
+                                    <MListItemTitle>Trials</MListItemTitle>
+                                </MListItem>
+                            </MList>
+                        </MCol>
+                        <MCol Cols="12" Md="4">
+                            <div class="text-h6 mb-2">Social Features</div>
+                            <MList Dense>
+                                <MListItem>
+                                    <MListItemTitle>Free Companies</MListItemTitle>
+                                </MListItem>
+                                <MListItem>
+                                    <MListItemTitle>Housing</MListItemTitle>
+                                </MListItem>
+                                <MListItem>
+                                    <MListItemTitle>Gold Saucer</MListItemTitle>
+                                </MListItem>
+                            </MList>
+                        </MCol>
+                        <MCol Cols="12" Md="4"> <div class="text-h6 mb-2">Crafting & Gathering</div>
+                            <MList Dense>
+                                <MListItem>
+                                        <MListItemTitle>Disciples of the Hand</MListItemTitle>
+                                    </MListItem>
+                                    <MListItem>
+                                        <MListItemTitle>Disciples of the Land</MListItemTitle>
+                                    </MListItem>
+                                </MList>
+                        </MCol>
+                            
+                       
+                    </MRow>
+                </MCard>
+            </MCol>
+        </MRow>
+    </section> </div>
+    
+</MContainer>
+
+<MDialog @bind-Value="showModal"
+         MaxWidth="500"
+         Persistent>
+    <MCard>
+        <MCardTitle>
+            <span class="text-h5">Login Settings</span>
+        </MCardTitle>
+        <MCardText>
+            <MTextField @bind-Value="usernameinp"
+                       Label="Username"
+                       Filled
+                       Clearable
+                       Class="mb-4" />
+
+            <MTextField @bind-Value="passinp"
+                       Label="Password"
+                       Type="password"
+                       Filled
+                       Clearable
+                       Class="mb-4" />
+
+            <MTextField @bind-Value="otpinp"
+                       Label="OTP"
+                       Filled
+                       Clearable
+                       Class="mb-4" />
+
+            <MTextField @bind-Value="gamepatherinp"
+                       Label="Game Path"
+                       Filled
+                       Clearable
+                       Class="mb-4" />
+
+            <MSwitch @bind-Value="checkedValue"
+                    Label="Own game on Steam?"
+                    Class="mb-4" />
+        </MCardText>
+        <MCardActions>
+            <MSpacer></MSpacer>
+            <MButton Color="primary"
+                     OnClick="ModalOk"
+                     Class="mr-2">
+                Accept
+            </MButton>
+            <MButton OnClick="ModalCancel">
+                Cancel
+            </MButton>
+        </MCardActions>
+    </MCard>
+</MDialog>
+
+<style>
+    .game-header {
+        width: 100vw;
+        position: relative;
+        left: 50%;
+        right: 50%;
+        margin-left: -50vw;
+        margin-right: -50vw;
+        opacity: 0;
+        animation: fadeIn 0.3s ease-out forwards;
+    }
+
+    .header-content {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        padding: 2rem;
+        color: var(--foreground);
+        opacity: 0;
+        animation: fadeIn 0.3s ease-out 0.15s forwards;
+    }
+
+    .play-card {
+        padding: 1rem;
+        background-color: rgb(var(--theme-background-rgb)) !important;
+        opacity: 0;
+        border: 1px solid var(--theme-dividers);
+        display: flex;
+        gap: 0.5rem;
+        animation: fadeIn 0.3s ease-out 0.3s forwards;
+        box-shadow: var(--theme-shadow-4);
+        transition: background-color 0.3s ease;
+    }
+
+    .play-button {
+        background: var(--theme-colors-primary);
+        color: var(--theme-colors-on-primary);
+        font-weight: 500;
+    }
+
+    .settings-button {
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .section-content {
+        scroll-margin-top: 120px;
+    }
+
+    @@keyframes fadeIn {
+        0% {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        100% {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @@media (max-width: 600px) {
+        .play-card {
+            display: none;
+        }
+    }
+</style>
+
+@code {
+    private string currentSection = "";
+    private string statusstring = "Awaiting input";
+    private string usernameinp = "";
+    private string passinp = "";
+    private string otpinp = "";
+    private string gamepatherinp = "";
+    private string md5Hash = "";
+    private bool checkedValue;
+    bool showModal = false;
+
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public string? Section { get; set; }
+    
+    protected override void OnInitialized()
+    {
+        var links = new List<(string Text, string Url, string Icon, bool IsActive, string PageName)>
+        {
+            ("Overview", "overview", "mdi-home", Section == "overview", "counter"),
+            ("Characters", "characters", "mdi-account-group", Section == "characters", "counter"),
+            ("Story", "story", "mdi-book-open-variant", Section == "story", "counter"),
+            ("Classes", "classes", "mdi-sword-cross", Section == "classes", "counter"),
+            ("World", "world", "mdi-earth", Section == "world", "counter"),
+            ("Features", "features", "mdi-star", Section == "features", "counter")
+        };
+
+        MessagingCenter.Send(this, "update_nav", links);
+    }
+    
+
+    
+
+    protected override void OnParametersSet()
+{
+    var uri = navigationManager.Uri;
+    var fragment = new Uri(uri).Fragment;
+    currentSection = !string.IsNullOrEmpty(fragment) ? fragment.TrimStart('#') : "overview";
+    StateHasChanged();
+}
+    void ModalShow() => showModal = true;
+    void ModalCancel() => showModal = false;
+    void ModalOk()
+    {
+        Console.WriteLine("Modal ok");
+        showModal = false;
+    }
+
+    private async Task<(string encrypted, string hash)> EncryptPassword(string password)
+    {
+        try
+        {
+            Console.WriteLine("Starting password encryption process");
+            
+            if (string.IsNullOrEmpty(password))
+            {
+                throw new ArgumentException("Password cannot be empty");
+            }
+
+            Console.WriteLine("Creating hash using SHA256");
+            string hash;
+            using (var sha256 = System.Security.Cryptography.SHA256.Create())
+            {
+                byte[] inputBytes = System.Text.Encoding.UTF8.GetBytes(password);
+                Console.WriteLine($"Input bytes length: {inputBytes.Length}");
+                
+                byte[] hashBytes = sha256.ComputeHash(inputBytes);
+                Console.WriteLine($"Hash bytes length: {hashBytes.Length}");
+                
+                hash = BitConverter.ToString(hashBytes).Replace("-", "").ToLower();
+                Console.WriteLine($"Hash created: {hash}");
+            }
+
+            Console.WriteLine("Performing XOR encryption");
+            byte[] dataBytes = System.Text.Encoding.UTF8.GetBytes(password);
+            byte[] keyBytes = System.Text.Encoding.UTF8.GetBytes(hash.Substring(0, 16));
+            
+            byte[] encryptedBytes = new byte[dataBytes.Length];
+            for (int i = 0; i < dataBytes.Length; i++)
+            {
+                encryptedBytes[i] = (byte)(dataBytes[i] ^ keyBytes[i % keyBytes.Length]);
+            }
+            
+            var result = Convert.ToBase64String(encryptedBytes);
+            Console.WriteLine("Encryption completed successfully");
+            
+            return (result, hash);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Detailed encryption error: {ex.GetType().Name}");
+            Console.WriteLine($"Error message: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            statusstring = $"Encryption failed: {ex.Message}";
+            throw;
+        }
+    }
+
+    private async Task processinputsx()
+    {
+        try
+        {
+            Console.WriteLine("Starting game launch process...");
+            Console.WriteLine($"Username: {usernameinp}, OTP provided: {!string.IsNullOrEmpty(otpinp)}, Steam: {checkedValue}");
+            Console.WriteLine($"Game path: {gamepatherinp}");
+            Console.WriteLine($"Password provided: {!string.IsNullOrEmpty(passinp)}");
+
+            var (encryptedPassword, hash) = await EncryptPassword(passinp);
+            Console.WriteLine("Password encryption completed successfully");
+            passinp = "";
+
+            string steamParam = checkedValue ? "yes" : "no";
+            Console.WriteLine("Preparing navigation URL...");
+            
+            string navigationUrl = $"HandleWebRequest:HandleReqLaunch?ffxivhandle=yes?login={usernameinp}:?pass={encryptedPassword}:?hash={hash}:?otp={otpinp}:?gamepath={gamepatherinp}:?issteam={steamParam}";
+            Console.WriteLine($"Navigation URL prepared: {navigationUrl}");
+            
+            navigationManager.NavigateTo(navigationUrl);
+            Console.WriteLine("Navigation executed successfully");
+            
+            statusstring = "Game launched";
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error during launch process: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            statusstring = $"Launch failed: {ex.Message}";
+        }
+    }
+}
+
+styling <head><style class="darkreader darkreader--fallback" media="screen"></style><style class="darkreader darkreader--text" media="screen"></style><style class="darkreader darkreader--invert" media="screen">.jfk-bubble.gtx-bubble, .captcheck_answer_label > input + img, span#closed_text > img[src^="https://www.gstatic.com/images/branding/googlelogo"], span[data-href^="https://www.hcaptcha.com/"] > #icon, img.Wirisformula {
+    filter: invert(100%) hue-rotate(180deg) brightness(75%) contrast(90%) !important;
+}</style><style class="darkreader darkreader--inline" media="screen">[data-darkreader-inline-bgcolor] {
+  background-color: var(--darkreader-inline-bgcolor) !important;
+}
+[data-darkreader-inline-bgimage] {
+  background-image: var(--darkreader-inline-bgimage) !important;
+}
+[data-darkreader-inline-border] {
+  border-color: var(--darkreader-inline-border) !important;
+}
+[data-darkreader-inline-border-bottom] {
+  border-bottom-color: var(--darkreader-inline-border-bottom) !important;
+}
+[data-darkreader-inline-border-left] {
+  border-left-color: var(--darkreader-inline-border-left) !important;
+}
+[data-darkreader-inline-border-right] {
+  border-right-color: var(--darkreader-inline-border-right) !important;
+}
+[data-darkreader-inline-border-top] {
+  border-top-color: var(--darkreader-inline-border-top) !important;
+}
+[data-darkreader-inline-boxshadow] {
+  box-shadow: var(--darkreader-inline-boxshadow) !important;
+}
+[data-darkreader-inline-color] {
+  color: var(--darkreader-inline-color) !important;
+}
+[data-darkreader-inline-fill] {
+  fill: var(--darkreader-inline-fill) !important;
+}
+[data-darkreader-inline-stroke] {
+  stroke: var(--darkreader-inline-stroke) !important;
+}
+[data-darkreader-inline-outline] {
+  outline-color: var(--darkreader-inline-outline) !important;
+}
+[data-darkreader-inline-stopcolor] {
+  stop-color: var(--darkreader-inline-stopcolor) !important;
+}
+[data-darkreader-inline-bg] {
+  background: var(--darkreader-inline-bg) !important;
+}
+[data-darkreader-inline-invert] {
+    filter: invert(100%) hue-rotate(180deg);
+}</style><style class="darkreader darkreader--variables" media="screen">:root {
+   --darkreader-neutral-background: #121414;
+   --darkreader-neutral-text: #aeadaa;
+   --darkreader-selection-background: #003a80;
+   --darkreader-selection-text: #aeadaa;
+}</style><style class="darkreader darkreader--root-vars" media="screen"></style><style class="darkreader darkreader--user-agent" media="screen">@layer {
+html {
+    background-color: #121414 !important;
+}
+html {
+    color-scheme: dark !important;
+}
+iframe {
+    color-scheme: dark !important;
+}
+html, body {
+    background-color: #121414;
+}
+html, body {
+    border-color: #565047;
+    color: #aeadaa;
+}
+a {
+    color: #266dbf;
+}
+table {
+    border-color: #3f4447;
+}
+mark {
+    color: #aeadaa;
+}
+::placeholder {
+    color: #858079;
+}
+input:-webkit-autofill,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+    background-color: #303300 !important;
+    color: #aeadaa !important;
+}
+* {
+    scrollbar-color: #34383a #181a1b;
+}
+::selection {
+    background-color: #003a80 !important;
+    color: #aeadaa !important;
+}
+::-moz-selection {
+    background-color: #003a80 !important;
+    color: #aeadaa !important;
+}
+}</style>
+		<meta charset="utf-8">
+		<link rel="icon" href="https://terbium.app/favicon.png">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+
+		
+		<link rel="modulepreload" href="/_app/immutable/entry/start.DRtco1_P.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/entry.D9VWo7qj.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/index-client.D4ZsbIAE.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/runtime.D2UEC1z1.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/index.BFqC5wTN.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/index.CapOLY6M.js">
+		<link rel="modulepreload" href="/_app/immutable/entry/app.l3GTMryJ.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/render.B6t-OKK8.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/store.CMP1K_8r.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/template.CKrtN3Pz.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/disclose-version.Bg9kRutz.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/if.BBVF22dR.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/svelte-component.p6r7JMHe.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/props.D7y83Szo.js">
+		<link rel="modulepreload" href="/_app/immutable/chunks/this.CC1l5JSS.js">
+	<link rel="modulepreload" as="script" crossorigin="" href="https://terbium.app/_app/immutable/nodes/0.BDcjqSFd.js"><link rel="modulepreload" as="script" crossorigin="" href="https://terbium.app/_app/immutable/chunks/snippet.bN7uPKd8.js"><link rel="modulepreload" as="script" crossorigin="" href="https://terbium.app/_app/immutable/chunks/card-content.DMI1ZCv0.js"><link rel="modulepreload" as="script" crossorigin="" href="https://terbium.app/_app/immutable/chunks/attributes.DYL3Dut3.js"><link rel="modulepreload" as="script" crossorigin="" href="https://terbium.app/_app/immutable/chunks/utils.BhUYTnyS.js"><link rel="modulepreload" as="script" crossorigin="" href="https://terbium.app/_app/immutable/chunks/scroll-area.B-pRcqfq.js"><link rel="modulepreload" as="script" crossorigin="" href="https://terbium.app/_app/immutable/chunks/events.Ciq8iKt8.js"><link rel="stylesheet" crossorigin="" href="https://terbium.app/_app/immutable/assets/scroll-area.bHHIbcsu.css"><style class="darkreader darkreader--sync" media="screen"></style><link rel="modulepreload" as="script" crossorigin="" href="https://terbium.app/_app/immutable/chunks/card-title.Dejt9OcT.js"><link rel="modulepreload" as="script" crossorigin="" href="https://terbium.app/_app/immutable/chunks/alert.DAE7Blzx.js"><link rel="modulepreload" as="script" crossorigin="" href="https://terbium.app/_app/immutable/chunks/index.BUz1eSdf.js"><link rel="modulepreload" as="script" crossorigin="" href="https://terbium.app/_app/immutable/chunks/floating-layer-anchor.B50OOKc6.js"><link rel="modulepreload" as="script" crossorigin="" href="https://terbium.app/_app/immutable/chunks/portal.CVbkSqyQ.js"><link rel="modulepreload" as="script" crossorigin="" href="https://terbium.app/_app/immutable/chunks/index.dPRPxuHw.js"><link rel="modulepreload" as="script" crossorigin="" href="https://terbium.app/_app/immutable/chunks/button.9NGLfHIO.js"><link rel="modulepreload" as="script" crossorigin="" href="https://terbium.app/_app/immutable/chunks/errorStore.Doa3Jt1w.js"><link rel="modulepreload" as="script" crossorigin="" href="https://terbium.app/_app/immutable/chunks/helpStore.DXybn5aV.js"><link rel="modulepreload" as="script" crossorigin="" href="https://terbium.app/_app/immutable/chunks/legacy.CtaTdtmd.js"><link rel="modulepreload" as="script" crossorigin="" href="https://terbium.app/_app/immutable/chunks/slot.VYiMCwRb.js"><link rel="modulepreload" as="script" crossorigin="" href="https://terbium.app/_app/immutable/chunks/Icon.n67g_7hX.js"><link rel="modulepreload" as="script" crossorigin="" href="https://terbium.app/_app/immutable/chunks/lifecycle.ClO2uT9b.js"><link rel="modulepreload" as="script" crossorigin="" href="https://terbium.app/_app/immutable/chunks/prevPageStore.6laJfNv9.js"><link rel="modulepreload" as="script" crossorigin="" href="https://terbium.app/_app/immutable/chunks/libarchive.DV-PzcVS.js"><link rel="modulepreload" as="script" crossorigin="" href="https://terbium.app/_app/immutable/chunks/stores.D8uzlpLW.js"><link rel="stylesheet" crossorigin="" href="https://terbium.app/_app/immutable/assets/0.vRAM-_lY.css"><style class="darkreader darkreader--sync" media="screen"></style><link rel="modulepreload" as="script" crossorigin="" href="https://terbium.app/_app/immutable/nodes/1.BprpHpoR.js"><link rel="modulepreload" as="script" crossorigin="" href="https://terbium.app/_app/immutable/nodes/3.q54yKgb9.js"><link rel="modulepreload" as="script" crossorigin="" href="https://terbium.app/_app/immutable/chunks/card-footer.BcrUgNj7.js"><link rel="modulepreload" as="script" crossorigin="" href="https://terbium.app/_app/immutable/chunks/CarThing.eFmdXLwU.js"><link rel="modulepreload" as="script" crossorigin="" href="https://terbium.app/_app/immutable/chunks/deviceStore.CgrXPUbt.js"><link rel="modulepreload" as="script" crossorigin="" href="https://terbium.app/_app/immutable/chunks/sb.DByK5oUj.js"><link rel="modulepreload" as="script" crossorigin="" href="https://terbium.app/_app/immutable/chunks/download.IwhM2uN3.js"><meta name="darkreader" content="91c4b95766534e5e8e81d9ea54ce3660"><style class="darkreader darkreader--override" media="screen">.vimvixen-hint {
+    background-color: #4e3800 !important;
+    border-color: #775f00 !important;
+    color: #a19f9b !important;
+}
+#vimvixen-console-frame {
+    color-scheme: light !important;
+}
+::placeholder {
+    opacity: 0.5 !important;
+}
+#edge-translate-panel-body,
+.MuiTypography-body1,
+.nfe-quote-text {
+    color: var(--darkreader-neutral-text) !important;
+}
+gr-main-header {
+    background-color: #143742 !important;
+}
+.tou-z65h9k,
+.tou-mignzq,
+.tou-1b6i2ox,
+.tou-lnqlqk {
+    background-color: var(--darkreader-neutral-background) !important;
+}
+.tou-75mvi {
+    background-color: #0b2c35 !important;
+}
+.tou-ta9e87,
+.tou-1w3fhi0,
+.tou-1b8t2us,
+.tou-py7lfi,
+.tou-1lpmd9d,
+.tou-1frrtv8,
+.tou-17ezmgn {
+    background-color: #161819 !important;
+}
+.tou-uknfeu {
+    background-color: #322107 !important;
+}
+.tou-6i3zyv {
+    background-color: #1b4654 !important;
+}
+div.mermaid-viewer-control-panel .btn {
+    background-color: var(--darkreader-neutral-background);
+    fill: var(--darkreader-neutral-text);
+}
+svg g rect.er {
+    fill: var(--darkreader-neutral-background) !important;
+}
+svg g rect.er.entityBox {
+    fill: var(--darkreader-neutral-background) !important;
+}
+svg g rect.er.attributeBoxOdd {
+    fill: var(--darkreader-neutral-background) !important;
+}
+svg g rect.er.attributeBoxEven {
+    fill: var(--darkreader-selection-background);
+    fill-opacity: 0.8 !important;
+}
+svg rect.er.relationshipLabelBox {
+    fill: var(--darkreader-neutral-background) !important;
+}
+svg g g.nodes rect,
+svg g g.nodes polygon {
+    fill: var(--darkreader-neutral-background) !important;
+}
+svg g rect.task {
+    fill: var(--darkreader-selection-background) !important;
+}
+svg line.messageLine0,
+svg line.messageLine1 {
+    stroke: var(--darkreader-neutral-text) !important;
+}
+div.mermaid .actor {
+    fill: var(--darkreader-neutral-background) !important;
+}
+mitid-authenticators-code-app > .code-app-container {
+    background-color: white !important;
+    padding-top: 1rem;
+}
+iframe#unpaywall[src$="unpaywall.html"] {
+    color-scheme: light !important;
+}</style></head>
+
+<script lang="ts">
+ import * as Card from "$lib/components/ui/card";
+</script>
+ 
+<Card.Root>
+ <Card.Header>
+  <Card.Title>Card Title</Card.Title>
+  <Card.Description>Card Description</Card.Description>
+ </Card.Header>
+ <Card.Content>
+  <p>Card Content</p>
+ </Card.Content>
+ <Card.Footer>
+  <p>Card Footer</p>
+ </Card.Footer>
+</Card.Root>
+<script lang="ts">
+ import * as Alert from "$lib/components/ui/alert";
+</script>
+ 
+<Alert.Root>
+ <Alert.Title>Heads up!</Alert.Title>
+ <Alert.Description>
+  You can add components to your app using the cli.
+ </Alert.Description>
+</Alert.Root>
+<script lang="ts">
+ import { Button } from "$lib/components/ui/button";
+</script>
+<script lang="ts">
+ import * as AlertDialog from "$lib/components/ui/alert-dialog";
+</script>
+ 
+<AlertDialog.Root>
+ <AlertDialog.Trigger>Open</AlertDialog.Trigger>
+ <AlertDialog.Content>
+  <AlertDialog.Header>
+   <AlertDialog.Title>Are you absolutely sure?</AlertDialog.Title>
+   <AlertDialog.Description>
+    This action cannot be undone. This will permanently delete your account
+    and remove your data from our servers.
+   </AlertDialog.Description>
+  </AlertDialog.Header>
+  <AlertDialog.Footer>
+   <AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+   <AlertDialog.Action>Continue</AlertDialog.Action>
+  </AlertDialog.Footer>
+ </AlertDialog.Content>
+</AlertDialog.Root>
+<script lang="ts">
+ import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
+</script>
+ 
+<DropdownMenu.Root>
+ <DropdownMenu.Trigger>Open</DropdownMenu.Trigger>
+ <DropdownMenu.Content>
+  <DropdownMenu.Group>
+   <DropdownMenu.Label>My Account</DropdownMenu.Label>
+   <DropdownMenu.Separator />
+   <DropdownMenu.Item>Profile</DropdownMenu.Item>
+   <DropdownMenu.Item>Billing</DropdownMenu.Item>
+   <DropdownMenu.Item>Team</DropdownMenu.Item>
+   <DropdownMenu.Item>Subscription</DropdownMenu.Item>
+  </DropdownMenu.Group>
+ </DropdownMenu.Content>
+</DropdownMenu.Root>
+<script lang="ts">
+ import * as Sheet from "$lib/components/ui/sheet";
+</script>
+ 
+<Sheet.Root>
+ <Sheet.Trigger>Open</Sheet.Trigger>
+ <Sheet.Content>
+  <Sheet.Header>
+   <Sheet.Title>Are you sure absolutely sure?</Sheet.Title>
+   <Sheet.Description>
+    This action cannot be undone. This will permanently delete your account
+    and remove your data from our servers.
+   </Sheet.Description>
+  </Sheet.Header>
+ </Sheet.Content>
+</Sheet.Root>

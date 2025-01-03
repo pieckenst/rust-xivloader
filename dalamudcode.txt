@@ -1,0 +1,4008 @@
+﻿using handlerlaunch;
+using CoreLibLaunchSupport;
+using Microsoft.Win32;
+using SpinningWheelLib;
+using System;
+using System.IO;
+using System.Linq;
+using System.Windows;
+using Microsoft.Toolkit.Uwp.Notifications;
+using System.Runtime.InteropServices;
+using System.Windows.Threading;
+using System.Diagnostics;
+using System.Windows.Media;
+using System.Text;
+using El_Garnan_Plugin_Loader;
+using El_Garnan_Plugin_Loader.Interfaces;
+using El_Garnan_Plugin_Loader.Models;
+using System.Net;
+
+namespace WMConsole
+{
+    internal class ConsoleOutputRedirector : TextWriter
+    {
+        private readonly Window1 _window;
+
+        public ConsoleOutputRedirector(Window1 window)
+        {
+            _window = window;
+        }
+
+        public override void Write(string value)
+        {
+            _window.WriteToConsole(value, Colors.White);
+        }
+
+        public override void WriteLine(string value)
+        {
+            _window.WriteToConsole(value + Environment.NewLine, Colors.White);
+        }
+
+        public override Encoding Encoding => Encoding.UTF8;
+    }
+
+    internal class MultiWriter : TextWriter
+    {
+        private readonly TextWriter[] writers;
+    
+        public MultiWriter(TextWriter[] writers)
+        {
+            this.writers = writers;
+        }
+
+        public override void Write(string value)
+        {
+            foreach (var writer in writers)
+                writer.Write(value);
+        }
+
+        public override void WriteLine(string value)
+        {
+            foreach (var writer in writers)
+                writer.WriteLine(value);
+        }
+
+        public override Encoding Encoding => Encoding.UTF8;
+    }
+
+    class Program
+    {
+        [DllImport("kernel32.dll")]
+        static extern IntPtr GetConsoleWindow();
+
+        [DllImport("user32.dll")]
+        static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        const int SW_HIDE = 0;
+        const int SW_SHOW = 5;
+        private const string DefaultInstallPath = @"D:\HandleGame\";
+        private static string? _installPath;
+        private static readonly string LogFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "debug.log");
+        private static CoreFunctions _pluginSystem;
+        private static ILogger _logger;
+
+        public static string GetExpansionFolder(byte expansionId) =>
+            expansionId == 0 ? "ffxiv" : $"ex{expansionId}";
+
+        public static string? TextFollowing(string? txt, string? value)
+        {
+            LogDebug("Entering TextFollowing method");
+            if (string.IsNullOrEmpty(txt) || string.IsNullOrEmpty(value))
+                return null;
+
+            int index = txt.IndexOf(value);
+            if (index == -1)
+                return null;
+
+            int start = index + value.Length;
+            return start <= txt.Length ? txt[start..] : null;
+        }
+
+        public static string ReturnXpacNum(ushort expansionId) =>
+            GetExpansionFolder((byte)expansionId);
+        private static string GetInstallPath()
+        {
+            LogDebug("Entering GetInstallPath method");
+            if (!string.IsNullOrEmpty(_installPath))
+                return _installPath;
+
+            string exePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+            LogDebug($"Executable path: {exePath}");
+            string currentDirectory = Path.GetDirectoryName(exePath) ?? throw new InvalidOperationException("Unable to determine current directory");
+            LogDebug($"Current directory: {currentDirectory}");
+            string? parentDirectory = Directory.GetParent(currentDirectory)?.FullName;
+            LogDebug($"Parent directory: {parentDirectory}");
+
+            if (Directory.Exists(DefaultInstallPath))
+            {
+                _installPath = DefaultInstallPath;
+                LogDebug($"Using default install path: {_installPath}");
+            }
+            else if (parentDirectory != null && Directory.Exists(parentDirectory))
+            {
+                _installPath = Path.Combine(parentDirectory, "HandleGame");
+                LogDebug($"Using parent directory for install: {_installPath}");
+            }
+            else
+            {
+                _installPath = Path.Combine(currentDirectory, "HandleGame");
+                LogDebug($"Using current directory for install: {_installPath}");
+            }
+
+            return _installPath;
+        }
+        private static void CopyFiles()
+        {
+            LogDebug("Entering CopyFiles method");
+            string installPath = GetInstallPath();
+            
+            if (!Directory.Exists(installPath))
+            {
+                Directory.CreateDirectory(installPath);
+            }
+            
+            string exePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+            string baseDir = Path.GetDirectoryName(exePath) ?? throw new InvalidOperationException("Unable to determine base directory");
+            
+            LogDebug($"Base directory: {baseDir}");
+
+            var filesToCopy = new[]
+{
+    exePath,
+    Path.Combine(baseDir, "WMConsole.exe"),
+    Path.Combine(baseDir, "WMConsole.runtimeconfig.json"),
+    Path.Combine(baseDir, "WMconsole.dll"),
+    Path.Combine(baseDir, "WMconsole.pdb"),
+    Path.Combine(baseDir, "WMconsole.deps.json"),
+    Path.Combine(baseDir, "CoreLibLaunchSupport.dll"),
+    Path.Combine(baseDir, "CoreLibLaunchSupport.pdb"),
+    Path.Combine(baseDir, "SpinningWheelLib.dll"),
+    Path.Combine(baseDir, "SpinningWheelLib.pdb"),
+    Path.Combine(baseDir, "WpfAnimatedGif.dll"),
+    Path.Combine(baseDir, "XamlAnimatedGif.dll"),
+    Path.Combine(baseDir, "DotNetZip.dll"),
+    Path.Combine(baseDir, "Newtonsoft.Json.dll"),
+    Path.Combine(baseDir, "log4net.dll"),
+    Path.Combine(baseDir, "Goblinfactory.Konsole.dll"),
+    Path.Combine(baseDir, "CommandLine.dll"),
+    Path.Combine(baseDir, "Downloader.dll"),
+    Path.Combine(baseDir, "Facepunch.Steamworks.Win64.dll"),
+    Path.Combine(baseDir, "LibDalamud.dll"),
+    Path.Combine(baseDir, "LibDalamud.pdb"),
+    Path.Combine(baseDir, "Mono.Nat.dll"),
+    Path.Combine(baseDir, "MonoTorrent.dll"),
+    Path.Combine(baseDir, "ReusableTasks.dll"),
+    Path.Combine(baseDir, "Serilog.dll"),
+    Path.Combine(baseDir, "SharedMemory.dll"),
+    Path.Combine(baseDir, "Microsoft.Toolkit.Uwp.Notifications.dll"),
+    Path.Combine(baseDir, "Microsoft.Windows.SDK.NET.dll"),
+    Path.Combine(baseDir, "WinRT.Runtime.dll"),
+    Path.Combine(baseDir, "Elgar'nan.dll"),
+    Path.Combine(baseDir, "Elgar'nan.xml"),
+    Path.Combine(baseDir, "H.GeneratedIcons.System.Drawing.dll"),
+    Path.Combine(baseDir, "H.NotifyIcon.dll"),
+    Path.Combine(baseDir, "H.NotifyIcon.Wpf.dll"),
+    Path.Combine(baseDir, "ImGui.NET.dll"),
+    Path.Combine(baseDir, "Microsoft.Extensions.DependencyInjection.Abstractions.dll"),
+    Path.Combine(baseDir, "Microsoft.Extensions.DependencyInjection.dll"),
+    Path.Combine(baseDir, "Microsoft.Extensions.Logging.Abstractions.dll"),
+    Path.Combine(baseDir, "Veldrid.dll"),
+    Path.Combine(baseDir, "Veldrid.MetalBindings.dll"),
+    Path.Combine(baseDir, "Veldrid.OpenGLBindings.dll"),
+    Path.Combine(baseDir, "Veldrid.SDL2.dll"),
+    Path.Combine(baseDir, "Veldrid.StartupUtilities.dll"),
+    Path.Combine(baseDir, "SharpGen.Runtime.dll"),
+    Path.Combine(baseDir, "SharpGen.Runtime.COM.dll"),
+    Path.Combine(baseDir, "SDL2.dll"),
+    Path.Combine(baseDir, "cimgui.dll"),
+    Path.Combine(baseDir, "Vortice.D3DCompiler.dll"),
+    Path.Combine(baseDir, "Vortice.Direct3D11.dll"),
+    Path.Combine(baseDir, "Vortice.DirectX.dll"),
+    Path.Combine(baseDir, "Vortice.DXGI.dll"),
+    Path.Combine(baseDir, "Vortice.Mathematics.dll"),
+    Path.Combine(baseDir, "vk.dll"),
+    Path.Combine(baseDir, "NativeLibraryLoader.dll")
+};
+
+
+            foreach (string sourceFile in filesToCopy)
+            {
+                try
+                {
+                    if (!File.Exists(sourceFile))
+                    {
+                        LogDebug($"Source file not found: {sourceFile}");
+                        continue;
+                    }
+
+                    string fileName = Path.GetFileName(sourceFile);
+                    string destFile = Path.Combine(installPath, fileName);
+
+                    if (File.Exists(destFile))
+                    {
+                        File.SetAttributes(destFile, FileAttributes.Normal);
+                    }
+
+                    using (var sourceStream = new FileStream(sourceFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                    using (var destStream = new FileStream(destFile, FileMode.Create, FileAccess.Write, FileShare.None))
+                    {
+                        sourceStream.CopyTo(destStream);
+                    }
+                    
+                    LogDebug($"Copied file: {sourceFile} to {destFile}");
+                }
+                catch (Exception ex)
+                {
+                    LogDebug($"Error copying file {sourceFile}: {ex.Message}");
+                }
+            }
+        }
+        private static void RegisterProtocolHandler()
+        {
+            LogDebug("Entering RegisterProtocolHandler method");
+            try
+            {
+                using var keyTest = Registry.CurrentUser.OpenSubKey("Software", true)?.OpenSubKey("Classes", true);
+                if (keyTest == null)
+                    throw new Exception("Unable to open registry key");
+
+                using var key = keyTest.CreateSubKey("HandleWebRequest");
+                key.SetValue("URL Protocol", "HandleReqLaunch");
+                string commandPath = $"{Path.Combine(GetInstallPath(), "WMConsole.exe")} %1";
+                key.CreateSubKey(@"shell\open\command")?.SetValue("", commandPath);
+                LogDebug($"Registered protocol handler with command: {commandPath}");
+            }
+            catch (Exception ex)
+            {
+                LogDebug($"Error registering protocol handler: {ex.Message}");
+            }
+        }
+
+        private static void InitializePluginSystem()
+        {
+            var pluginsPath = Path.Combine(GetInstallPath(), "Plugins");
+            _logger = new ConsoleLogger();
+            _pluginSystem = new CoreFunctions(pluginsPath, _logger, true);
+
+            _pluginSystem.PluginLoaded += (s, e) => LogDebug($"Plugin loaded: {e.Plugin.Name}");
+            _pluginSystem.PluginUnloaded += (s, e) => LogDebug($"Plugin unloaded: {e.PluginId}");
+            _pluginSystem.PluginError += (s, e) => LogDebug($"Plugin error: {e.Error.Message}");
+            _pluginSystem.PluginReloaded += (s, e) => LogDebug($"Plugin reloaded: {e.PluginId}");
+        }
+         private static void ShowProgressWindow(string previousOutput, bool isMessageBox = false,
+            string customLabel = "Loading...", double? customWidth = null, double? customHeight = null,
+            string messageTitle = "", string messageIcon = "!", List<string> listItems = null,
+            string footerText = "", SpinningWheelLib.Window1.ListItemsProvider listItemsProvider = null,
+            RoutedEventHandler okHandler = null, RoutedEventHandler cancelHandler = null,
+            bool hideButtons = false, int? autoCloseSeconds = null)
+        {
+            LogDebug($"Showing {(isMessageBox ? "message box" : "progress window")}");
+            
+            var thread = new Thread(() =>
+            {
+                try
+                {
+                    LogDebug("Creating window with specified parameters");
+                    Window1 window = null;
+                    
+                    SynchronizationContext.SetSynchronizationContext(
+                        new DispatcherSynchronizationContext(Dispatcher.CurrentDispatcher));
+                    
+                    if (Application.Current == null)
+                    {
+                        new Application();
+                    }
+
+                    window = new Window1(30, isMessageBox, customLabel, customWidth, customHeight,
+                        messageTitle, messageIcon, listItems, footerText, listItemsProvider,
+                        okHandler, cancelHandler, hideButtons, autoCloseSeconds);
+                    
+                    if (!string.IsNullOrEmpty(previousOutput))
+                    {
+                        LogDebug("Writing previous output to console");
+                        window.WriteToConsole(previousOutput, Colors.White);
+                    }
+                    
+                    var checkProcessTimer = new DispatcherTimer
+                    {
+                        Interval = TimeSpan.FromMilliseconds(100)
+                    };
+                    
+                    checkProcessTimer.Tick += (s, e) =>
+                    {
+                        try
+                        {
+                            if (!isMessageBox)
+                            {
+                                var processes = Process.GetProcessesByName("ffxiv_dx11");
+                                if (processes.Length > 0)
+                                {
+                                    LogDebug("Target process found, closing window");
+                                    checkProcessTimer.Stop();
+                                    window.Close();
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            LogDebug($"Error checking process: {ex.Message}");
+                            checkProcessTimer.Stop();
+                            window.Close();
+                        }
+                    };
+
+                    window.Closed += (s, e) =>
+                    {
+                        LogDebug("Window closed event triggered");
+                        checkProcessTimer.Stop();
+                        Dispatcher.CurrentDispatcher.InvokeShutdown();
+                    };
+
+                    LogDebug("Hiding console window");
+                    var handle = GetConsoleWindow();
+                    ShowWindow(handle, SW_HIDE);
+                    
+                    if (!isMessageBox)
+                    {
+                        LogDebug("Starting process check timer");
+                        checkProcessTimer.Start();
+                    }
+                    
+                    LogDebug("Showing window");
+                    window.Show();
+                    Dispatcher.Run();
+                    
+                    LogDebug("Showing console window");
+                    ShowWindow(handle, SW_SHOW);
+                }
+                catch (Exception ex)
+                {
+                    LogDebug($"Critical error in window thread: {ex.Message}");
+                    LogDebug($"Stack trace: {ex.StackTrace}");
+                }
+            });
+            
+            thread.SetApartmentState(ApartmentState.STA);
+            LogDebug("Starting window thread");
+            thread.Start();
+            
+            LogDebug($"{(isMessageBox ? "Message box" : "Progress window")} initialized");
+        }
+        private static void ShowNotification(string title, string content)
+        {
+            LogDebug($"Showing notification: {title} - {content}");
+            new ToastContentBuilder()
+                .AddArgument("action", "viewConversation")
+                .AddArgument("conversationId", 9813)
+                .AddText(title)
+                .AddText(content)
+                .Show();
+        }
+
+        private static void LogDebug(string message)
+        {
+            string logMessage = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - {message}";
+            Console.WriteLine(logMessage);
+            File.AppendAllText(LogFilePath, logMessage + Environment.NewLine);
+        }
+
+
+        private static void LaunchSettingsWindow()
+        {
+            LogDebug("Initializing settings window");
+
+            Thread thread = new Thread(() =>
+            {
+                try
+                {
+                    var settingsWindow = new SpinningWheelLib.SettingsWindow();
+                    LogDebug("Hiding console window");
+                    var handle = GetConsoleWindow();
+                    ShowWindow(handle, SW_HIDE);
+
+                    LogDebug("Showing settings window");
+                    settingsWindow.Show();
+                    Dispatcher.Run();
+
+                    LogDebug("Showing console window");
+                    ShowWindow(handle, SW_SHOW);
+                }
+                catch (Exception ex)
+                {
+                    LogDebug($"Critical error in settings window thread: {ex.Message}");
+                    LogDebug($"Stack trace: {ex.StackTrace}");
+                }
+            });
+
+            thread.SetApartmentState(ApartmentState.STA);
+            LogDebug("Starting settings window thread");
+            thread.Start();
+
+            LogDebug("Settings window initialized");
+        }
+
+        [STAThread]
+        static async Task Main(string[] args)
+        {
+            var handle = GetConsoleWindow();
+            ShowWindow(handle, SW_HIDE);
+
+            string tempLogFile = Path.Combine(Path.GetTempPath(), $"console_output_{Guid.NewGuid()}.txt");
+            TextWriter originalConsole = Console.Out;
+            StreamWriter fileWriter = null;
+
+            try
+            {
+                InitializePluginSystem();
+                await _pluginSystem.InitializeAsync();
+                
+                fileWriter = new StreamWriter(new FileStream(tempLogFile, FileMode.Create, FileAccess.ReadWrite, FileShare.ReadWrite));
+                var multiWriter = new MultiWriter(new[] { originalConsole, fileWriter });
+                Console.SetOut(multiWriter);
+
+                LogDebug("Application started");
+                ShowNotification("Application Started", "Initializing launcher...");
+
+                CopyFiles();
+                RegisterProtocolHandler();
+                if (args?.Length > 0)
+                {
+                    if (args[0].Contains("?ffxivhandle=yes"))
+                    {
+                        ShowNotification("FFXIV Launch", "Starting Final Fantasy XIV...");
+                        var plugin = _pluginSystem.GetPlugin("ffxiv-launcher");
+
+                        var credentials = ExtractCredentials(args[0]);
+                        LogDebug($"Extracted credentials for launch - Game Path: {credentials["GAME_PATH"]}");
+
+                        var parameters = new GameLaunchParameters
+                        {
+                            GamePath = credentials["GAME_PATH"],
+                            DirectX11 = true,
+                            Language = 1,
+                            IsSteam = args[0].Contains("issteam=yes"),
+                            ExpansionLevel = 4,
+                            Region = 3,
+                            EnvironmentVariables = credentials
+                        };
+
+                        bool success = await plugin.LaunchGameAsync(parameters);
+                        if (success)
+                        {
+                            ShowProgressWindow(await ReadTempFileContent(tempLogFile));
+                        }
+                        else
+                        {
+                            ShowNotification("Error", "Failed to launch FFXIV");
+                        }
+                    }
+                    else if (args[0].Contains("?spellbornhandle=yes"))
+                    {
+                        ShowNotification("Spellborn Launch", "Starting Chronicles of Spellborn...");
+                        var plugin = _pluginSystem.GetPlugin("spellborn-launcher");
+                        
+                        var parameters = new GameLaunchParameters
+                        {
+                            GamePath = ExtractGamePath(args[0]),
+                            EnvironmentVariables = new Dictionary<string, string>()
+                        };
+
+                        bool success = await plugin.LaunchGameAsync(parameters);
+                        if (success)
+                        {
+                            ShowProgressWindow(await ReadTempFileContent(tempLogFile), true, "Spellborn Launch");
+                        }
+                        else
+                        {
+                            ShowNotification("Error", "Failed to launch Spellborn");
+                        }
+                    }
+                    else if (args[0].Contains("?debugtest=yes"))
+                    {
+                        bool errorOccurred = false;
+                        string previousOutput = "";
+                        try
+                        {
+                            if (fileWriter != null)
+                            {
+                                fileWriter.Flush();
+                                using (var reader = new StreamReader(new FileStream(tempLogFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)))
+                                {
+                                    previousOutput = reader.ReadToEnd();
+                                }
+                            }
+
+                            if (args[0].Contains("-type=progress"))
+                            {
+                                ShowProgressWindow(previousOutput);
+                            }
+                            else if (args[0].Contains("-type=custom"))
+                            {
+                                ShowProgressWindow(previousOutput, true, "Custom Progress", 400, 250, "Debug Test", "!",
+                                    new List<string> { "Step 1", "Step 2", "Step 3" }, "Processing...", null,
+                                    (s, e) => { LogDebug("OK clicked"); },
+                                    (s, e) => { LogDebug("Cancel clicked"); });
+                            }
+                            else if (args[0].Contains("-type=autoclose"))
+                            {
+                                ShowProgressWindow(previousOutput, true, "Auto-closing Message", 400, 250, "Debug Test", "!",
+                                    null, "This window will close automatically", null, null, null, true, 5);
+                            }
+                            else if (args[0].Contains("-type=settingstest")){
+                                LaunchSettingsWindow();
+                            }
+                            else
+                            {
+                                ShowProgressWindow(previousOutput, true, "Game Launch Status", 1000, 1500, "Launch Progress", "X",
+                                    new List<string> { "Checking game files...", "Verifying credentials...", "Initializing game launcher..." },
+                                    "Please wait while the game launches...");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            LogDebug($"Error in debug test: {ex.Message}");
+                            errorOccurred = true;
+                            ShowNotification("Error", $"Failed to launch debug test: {ex.Message}");
+                        }
+                    }
+                }
+                else
+                {
+                    ShowNotification("Protocol Handler Registered",
+                        "You may now proceed to https://pieckenst.github.io/WebLaunch-FFXIV/ to launch the game");
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowNotification("Error", ex.Message);
+                LogDebug($"An error occurred: {ex.Message}");
+            }
+            finally
+            {
+                await CleanupAsync(fileWriter, originalConsole, tempLogFile);
+            }
+
+            Console.WriteLine("Press any key to exit or wait 60 seconds...");
+            await Task.WhenAny(
+                Task.Run(() => Console.ReadLine()),
+                Task.Delay(TimeSpan.FromSeconds(60))
+            );
+        }
+
+        private static Dictionary<string, string> ExtractCredentials(string arg)
+        {
+            var credentials = new Dictionary<string, string>();
+            LogDebug($"Processing launch arguments: {arg}");
+
+            try
+            {
+                var parts = arg.Split('?', StringSplitOptions.RemoveEmptyEntries);
+                string hash = null;
+                string encryptedPassword = null;
+
+                foreach (var part in parts)
+                {
+                    if (part.StartsWith("login="))
+                    {
+                        var login = part.Split('=')[1].Split(':')[0];
+                        credentials["FFXIV_USERNAME"] = Uri.UnescapeDataString(login);
+                        LogDebug($"Extracted username: {login}");
+                    }
+                    else if (part.StartsWith("pass="))
+                    {
+                        encryptedPassword = part.Split('=')[1].Split(':')[0];
+                        LogDebug($"Encrypted password extracted: {encryptedPassword}");
+                    }
+                    else if (part.StartsWith("hash="))
+                    {
+                        hash = part.Split('=')[1].Split(':')[0];
+                        LogDebug($"Hash extracted: {hash}");
+                    }
+                    else if (part.StartsWith("otp="))
+                    {
+                        var otp = part.Split('=')[1].Split(':')[0];
+                        credentials["FFXIV_OTP"] = Uri.UnescapeDataString(otp);
+                        LogDebug($"OTP extracted: {otp}");
+                    }
+                    else if (part.StartsWith("gamepath="))
+                    {
+                        var fullPath = part.Substring("gamepath=".Length);
+                        var gamePath = fullPath.Split(':')[0] + ":" + fullPath.Split(':')[1].Split('?')[0];
+                        gamePath = gamePath.Replace("%5C", "\\");
+                        credentials["GAME_PATH"] = Uri.UnescapeDataString(gamePath);
+                        LogDebug($"Game path extracted: {credentials["GAME_PATH"]}");
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(encryptedPassword) && !string.IsNullOrEmpty(hash))
+                {
+                    var decryptedPassword = DecryptPassword(encryptedPassword + "==", hash);
+                    if (decryptedPassword != null)
+                    {
+                        credentials["FFXIV_PASSWORD"] = decryptedPassword;
+                        LogDebug("Password successfully decrypted");
+                    }
+                }
+
+                return credentials;
+            }
+            catch (Exception ex)
+            {
+                LogDebug($"Credential extraction error: {ex.Message}");
+                throw;
+            }
+        }
+
+
+        private static string DecryptPassword(string encryptedPassword, string hash)
+        {
+            try
+            {
+                LogDebug("Starting password decryption");
+                LogDebug($"Hash received: {hash}");
+                LogDebug($"Encrypted password: {encryptedPassword}");
+
+                // Remove any trailing colons from the encrypted password
+                encryptedPassword = encryptedPassword.TrimEnd(':');
+
+                byte[] encryptedBytes = Convert.FromBase64String(encryptedPassword);
+                LogDebug($"Encrypted bytes length: {encryptedBytes.Length}");
+
+                // Use first 16 characters of hash as key, matching encryption
+                byte[] keyBytes = Encoding.UTF8.GetBytes(hash.Substring(0, 16));
+                LogDebug($"Key bytes length: {keyBytes.Length}");
+
+                // Perform XOR decryption
+                byte[] decryptedBytes = new byte[encryptedBytes.Length];
+                for (int i = 0; i < encryptedBytes.Length; i++)
+                {
+                    decryptedBytes[i] = (byte)(encryptedBytes[i] ^ keyBytes[i % keyBytes.Length]);
+                }
+
+                string decryptedPassword = Encoding.UTF8.GetString(decryptedBytes);
+#if DEBUG
+                Console.WriteLine($"Decrypted password: {decryptedPassword}");
+#endif
+                LogDebug("Decryption completed successfully");
+                return decryptedPassword;
+            }
+            catch (Exception ex)
+            {
+                LogDebug($"Password decryption error: {ex.Message}");
+                LogDebug($"Stack trace: {ex.StackTrace}");
+                return null;
+            }
+        }
+
+
+        private static string ExtractGamePath(string arg)
+        {
+            LogDebug("Extracting game path from arguments");
+            var parts = arg.Split('?');
+            foreach (var part in parts)
+            {
+                if (part.StartsWith("gamepath="))
+                {
+                    var path = Uri.UnescapeDataString(part.Split(':')[0].Substring(9));
+                    LogDebug($"Extracted game path: {path}");
+                    return path;
+                }
+            }
+            var defaultPath = GetInstallPath();
+            LogDebug($"Using default game path: {defaultPath}");
+            return defaultPath;
+        }
+
+        private static async Task<string> ReadTempFileContent(string tempFile)
+        {
+            if (File.Exists(tempFile))
+            {
+                return await File.ReadAllTextAsync(tempFile);
+            }
+            return string.Empty;
+        }
+
+        private static async Task CleanupAsync(StreamWriter fileWriter, TextWriter originalConsole, string tempLogFile)
+        {
+            try
+            {
+                if (fileWriter != null)
+                {
+                    Console.SetOut(originalConsole);
+                    await fileWriter.FlushAsync();
+                    fileWriter.Close();
+                    fileWriter.Dispose();
+                }
+
+                if (File.Exists(tempLogFile))
+                {
+                    try
+                    {
+                        File.Delete(tempLogFile);
+                    }
+                    catch (IOException)
+                    {
+                        LogDebug("Could not delete temporary log file - will be cleaned up later");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogDebug($"Error during cleanup: {ex.Message}");
+            }
+        }
+    }
+
+    public class ConsoleLogger : ILogger
+    {
+        public void Debug(string message) => Console.WriteLine($"[DEBUG] {message}");
+        public void Information(string message) => Console.WriteLine($"[INFO] {message}");
+        public void Warning(string message) => Console.WriteLine($"[WARN] {message}");
+        public void Error(string message) => Console.WriteLine($"[ERROR] {message}");
+        public void Error(string message, Exception ex) => Console.WriteLine($"[ERROR] {message}: {ex}");
+    }
+}
+
+﻿using CoreLibLaunchSupport;
+using log4net;
+using Microsoft.VisualBasic;
+using Microsoft.Win32;
+using Newtonsoft.Json;
+using SpinningWheelLib;
+using System;
+using System.Collections.Generic;
+using System.IO.Compression;
+using System.Linq;
+using System.Net;
+using System.Reflection;
+using System.Security.Cryptography;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows;
+
+
+using System.ComponentModel;
+using System.Diagnostics;
+using Ionic.Zip;
+using Konsole;
+using WMConsole;
+using System.Security.Principal;
+
+namespace handlerlaunch
+{
+    
+    public class Update
+    {
+        [JsonProperty("applies_to")]
+        public string appliesTo { get; set; }
+
+        [JsonProperty("version")]
+        public string version { get; set; }
+
+        [JsonProperty("file")]
+        public string file { get; set; }
+
+        [JsonProperty("patchnotes")]
+        public string patchnotes { get; set; }
+
+        [JsonProperty("checksum")]
+        public string checksum { get; set; }
+
+        [JsonProperty("server")]
+        public string files { get; set; }
+
+        [JsonProperty("enabled")]
+        public string enabled { get; set; }
+    }
+    public class UpdateJson
+    {
+        [JsonProperty("update")]
+        public Update Update { get; set; }
+    }
+    internal static class updateHandler
+    {
+        internal static dynamic getJsonItem(string file)
+        {
+            return JsonConvert.DeserializeObject<object>(new StreamReader(new WebClient().OpenRead("https://files.spellborn.org/" + file)).ReadToEnd());
+        }
+
+        internal static bool checkIfChecksumMatches(string file, string checksum)
+        {
+            using MD5 mD = MD5.Create();
+            using FileStream inputStream = File.OpenRead(file);
+            if (BitConverter.ToString(mD.ComputeHash(inputStream)).Replace("-", "").ToLowerInvariant() == checksum)
+            {
+                return true;
+            }
+            return false;
+        }
+
+        internal static dynamic fetchUpdates()
+        {
+            return JsonConvert.DeserializeObject<List<UpdateJson>>(new StreamReader(new WebClient().OpenRead("https://files.spellborn.org/updates.json")).ReadToEnd());
+        }
+    }
+    internal class registryManipulation
+    {
+        private static object keyValue;
+        public static void createkeys(string passover) {
+            var KeyTests = Registry.CurrentUser.OpenSubKey("Software", true);
+            KeyTests.CreateSubKey("The Chronicles of Spellborn");
+            var keyval = KeyTests.GetValue("installPath").ToString();
+            if (keyval == null)
+            {
+                KeyTests.SetValue("installPath", passover, RegistryValueKind.String);
+            }
+        }
+        public static string getKeyValue(string keyName)
+        {
+            try
+            {
+                using RegistryKey registryKey = Registry.CurrentUser.OpenSubKey("Software\\The Chronicles of Spellborn");
+                if (registryKey != null)
+                {
+                    try
+                    {
+                        if (registryKey.GetValue(keyName) != null)
+                        {
+                            return registryKey.GetValue(keyName).ToString();
+                        }
+                    }
+                    catch
+                    {
+                        return "false";
+                    }
+                    return "false";
+                }
+                return "false";
+            }
+            catch (Exception)
+            {
+                return "false";
+            }
+        }
+
+        public static void updateKeyValue(string keyName, string keyValue)
+        {
+            try
+            {
+                using RegistryKey registryKey = Registry.CurrentUser.OpenSubKey("Software\\The Chronicles of Spellborn", writable: true);
+                if (registryKey != null)
+                {
+                    registryKey.SetValue(keyName, keyValue);
+                    return;
+                }
+                using RegistryKey registryKey2 = Registry.CurrentUser.CreateSubKey("Software\\The Chronicles of Spellborn", writable: true);
+                registryKey2.SetValue(keyName, keyValue);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.ToString());
+            }
+        }
+
+        public static void deleteKeyValue(string keyName)
+        {
+            try
+            {
+                using RegistryKey registryKey = Registry.CurrentUser.OpenSubKey("Software\\The Chronicles of Spellborn", writable: true);
+                registryKey.DeleteValue(keyName);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.ToString());
+            }
+        }
+
+        public static bool detectInstallation()
+        {
+            try
+            {
+                using RegistryKey registryKey = Registry.CurrentUser.OpenSubKey("Software\\The Chronicles of Spellborn");
+                if (registryKey != null)
+                {
+                    try
+                    {
+                        if (registryKey.GetValue("installPath") != null)
+                        {
+                            return true;
+                        }
+                        return false;
+                    }
+                    catch (Exception)
+                    {
+                        return false;
+                    }
+                }
+                return false;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+    }
+    public class SpellbornSupporter
+    {
+        private static readonly string LogFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "debug.log");
+        private string installedVersion;
+        private dynamic jsonLatest;
+        private MessageBoxResult dialogResult;
+        private string installPath;
+        private bool downloadFinished;
+        private int totalFiles;
+        private const char _block = '■';
+        private int filesExtracted;
+        private string currentVersion;
+        private dynamic updateJson;
+        private string stringUpdateFile;
+        public string passOverFromWeb = "";
+        private bool enableLaunch;
+        private static void LogDebug(string message)
+        {
+            string logMessage = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - {message}";
+            Console.WriteLine(logMessage);
+            File.AppendAllText(LogFilePath, logMessage + Environment.NewLine);
+        }
+        private static readonly ILog _log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+
+        public SpellbornSupporter()
+        {
+            installPath = registryManipulation.getKeyValue("installPath");
+        }
+
+        public string GetGamePathFromArgs(string[] args)
+        {
+            try 
+            {
+                LogDebug($"Processing args: {string.Join(", ", args)}");
+                string gamePath = args[0].Contains("gamepath=") ? Program.TextFollowing(args[0], "gamepath=") : null;
+                if (string.IsNullOrEmpty(gamePath))
+                {
+                    _log.Warn("Game path not found in args, using default path");
+                    return "D:\\Games\\Spellborn";
+                }
+
+                gamePath = gamePath.Contains(":?") ? gamePath.Split(":?")[0] : gamePath;
+                gamePath = gamePath.Replace("%22", "").Replace("%5C", "/");
+
+                LogDebug($"Extracted game path: {gamePath}");
+                return gamePath;
+            }
+            catch (Exception e)
+            {
+                _log.Error("Error in GetGamePathFromArgs", e);
+                return "D:\\Games\\Spellborn";
+            }
+        }
+
+        public void StartupRoutine(string[] args)
+        {
+            try
+            {
+                LogDebug("Starting Spellborn startup routine");
+                string gamePath;
+                try
+                {
+                    gamePath = GetGamePathFromArgs(args);
+                    passOverFromWeb = gamePath;
+                    LogDebug($"Game path set: {gamePath}");
+                }
+                catch (Exception e)
+                {
+                    LogDebug($"Error in GetGamePathFromArgs: {e.Message}");
+                    _log.Error("Error in GetGamePathFromArgs", e);
+                    throw new Exception("Failed to get game path from args", e);
+                }
+                
+                bool installDirectoryEnsured;
+                try
+                {
+                    installDirectoryEnsured = EnsureInstallDirectory();
+                    LogDebug($"Install directory ensured: {installDirectoryEnsured}");
+                }
+                catch (Exception e)
+                {
+                    LogDebug($"Error in EnsureInstallDirectory: {e.Message}");
+                    _log.Error("Error in EnsureInstallDirectory", e);
+                    throw new Exception("Failed to ensure install directory", e);
+                }
+
+                bool versionUpdated;
+                try
+                {
+                    CheckAndUpdateVersion();
+                    LogDebug($"Version checked and updated");
+                }
+                catch (Exception e)
+                {
+                    LogDebug($"Error in CheckAndUpdateVersion: {e.Message}");
+                    _log.Error("Error in CheckAndUpdateVersion", e);
+                    throw new Exception("Failed to check and update version", e);
+                }
+                
+                if (enableLaunch)
+                {
+                    bool gameLaunched;
+                    try
+                    {
+                        LaunchGame();
+                        LogDebug($"Game launched");
+                    }
+                    catch (Exception e)
+                    {
+                        LogDebug($"Error in LaunchGame: {e.Message}");
+                        _log.Error("Error in LaunchGame", e);
+                        throw new Exception("Failed to launch game", e);
+                    }
+                }
+            }
+            catch(Exception e) 
+            {
+                LogDebug($"Error in StartupRoutine: {e.Message}");
+                _log.Error("Error in StartupRoutine", e);
+                Console.WriteLine($"An error occurred: {e.Message}");
+                Console.ReadLine();
+                throw; // Re-throw the exception to pass it to the calling function
+            }
+        }
+
+        private bool EnsureInstallDirectory()
+        {
+            try
+            {
+                if (!Directory.Exists(passOverFromWeb))
+                {
+                    LogDebug($"Creating directory: {passOverFromWeb}");
+                    Directory.CreateDirectory(passOverFromWeb);
+                }
+
+                if (!registryManipulation.detectInstallation())
+                {
+                    LogDebug("Clean install detected/no registry installpath key found");
+                    installPath = passOverFromWeb;
+                }
+
+                return true;
+            }
+            catch (Exception e)
+            {
+                LogDebug("Error in EnsureInstallDirectory {e}");
+                return false;
+            }
+        }
+
+        private void CheckAndUpdateVersion()
+        {
+            installedVersion = registryManipulation.getKeyValue("installedVersion");
+            LogDebug($"Installed version: {installedVersion}");
+
+            jsonLatest = updateHandler.getJsonItem("latest.json");
+            LogDebug("Fetched latest.json file");
+
+            if (installedVersion != jsonLatest.version.ToString())
+            {
+                LogDebug("Version mismatch detected");
+                if (installedVersion == "false")
+                {
+                    LogDebug("Clean install detected, proceeding with full install");
+                    if (!DownloadAndInstallLatestVersion())
+                    {
+                        throw new Exception("Failed to download and install latest version");
+                    }
+                }
+                else
+                {
+                    LogDebug("Updating existing installation");
+                    CheckUpdates();
+                }
+            }
+            else
+            {
+                LogDebug("Version is up to date");
+                enableLaunch = true;
+            }
+        }
+
+        private bool DownloadAndInstallLatestVersion()
+        {
+            try
+            {
+                LogDebug($"Downloading latest version: {jsonLatest.version}");
+                bool downloadSuccess = DownloadFile(jsonLatest.file, jsonLatest.checksum, jsonLatest.version);
+                if (!downloadSuccess)
+                {
+                    LogDebug("Download failed");
+                    return false;
+                }
+                LogDebug("Download completed successfully");
+                return true;
+            }
+            catch (Exception e)
+            {
+                LogDebug($"Error in DownloadAndInstallLatestVersion: {e.Message}");
+                return false;
+            }
+        }
+
+        public void UnzipFile(string file, string version)
+        {
+            try
+            {
+                LogDebug($"Unzipping file: {file}, version: {version}");
+                using (Ionic.Zip.ZipFile zipFile = Ionic.Zip.ZipFile.Read(file))
+                {
+                    totalFiles = zipFile.Count;
+                    filesExtracted = 0;
+                    zipFile.ExtractProgress += ZipExtractProgress;
+                    zipFile.ExtractAll(installPath, ExtractExistingFileAction.OverwriteSilently);
+                }
+
+                LogDebug($"Updating registry with new version: {version}");
+                registryManipulation.updateKeyValue("installedVersion", version);
+
+                CheckUpdates();
+            }
+            catch (Exception e)
+            {
+                _log.Error("Error in UnzipFile", e);
+            }
+        }
+
+        private bool CheckUpdates()
+        {
+            try
+            {
+                currentVersion = registryManipulation.getKeyValue("installedVersion");
+                LogDebug($"Checking updates for version: {currentVersion}");
+
+                dynamic updates = updateHandler.fetchUpdates();
+                foreach (var update in updates)
+                {
+                    if (update.Update.appliesTo == currentVersion)
+                    {
+                        LogDebug("Found applicable update");
+                        if (update.Update.enabled == "false")
+                        {
+                            LogDebug("Update is not yet enabled");
+                            EnablePlayButton();
+                            return false;
+                        }
+
+                        LogDebug("Downloading update");
+                        DownloadFile(update.Update.file, update.Update.checksum, update.Update.version);
+                        return true;
+                    }
+                }
+
+                LogDebug("No updates found, enabling play button");
+                EnablePlayButton();
+                return false;
+            }
+            catch (Exception e)
+            {
+                _log.Error("Error in CheckUpdates", e);
+                return false;
+            }
+        }
+
+        private void ZipExtractProgress(object sender, ExtractProgressEventArgs e)
+        {
+            if (e.EventType == ZipProgressEventType.Extracting_BeforeExtractEntry)
+            {
+                filesExtracted++;
+                _log.Debug($"Extracting file {filesExtracted} of {totalFiles}");
+            }
+        }
+
+        private bool DownloadFile(dynamic file, dynamic checksum, dynamic version)
+        {
+            try
+            {
+                EnsureWriteAccess();
+
+                string uriString = $"https://files.spellborn.org/{file}";
+                stringUpdateFile = file.ToString();
+
+                if (File.Exists(Path.Combine(installPath, file.ToString())))
+                {
+                    return HandleExistingFile(file, checksum, version);
+                }
+                else
+                {
+                    return DownloadNewFile(uriString, file, checksum, version);
+                }
+            }
+            catch (Exception e)
+            {
+                LogDebug($"Error in DownloadFile: {e.Message}");
+                return false;
+            }
+        }
+
+        private void EnsureWriteAccess()
+        {
+            try
+            {
+                string testFile = Path.Combine(installPath, "testfile.txt");
+                File.WriteAllText(testFile, "This is a testfile");
+                File.Delete(testFile);
+            }
+            catch (Exception e)
+            {
+                _log.Error("Write access test failed", e);
+                MessageBox.Show("Installation location requires administrator access. Please choose a different location or run as administrator.", "Installation Location Issue", MessageBoxButton.OK, MessageBoxImage.Exclamation);
+                installPath = passOverFromWeb;
+            }
+        }
+
+        private bool HandleExistingFile(dynamic file, dynamic checksum, dynamic version)
+        {
+            LogDebug($"File {file} already exists, checking checksum");
+            if (CalculateMD5(Path.Combine(installPath, file.ToString())) != checksum.ToString())
+            {
+                LogDebug("Checksum mismatch, re-downloading file");
+                return DownloadNewFile($"https://files.spellborn.org/{file}", file, checksum, version);
+            }
+            else
+            {
+                LogDebug("File checksum matches, starting extraction");
+                UnzipFile(Path.Combine(installPath, file.ToString()), version.ToString());
+                return true;
+            }
+        }
+
+        private bool DownloadNewFile(string uriString, dynamic file, dynamic checksum, dynamic version)
+        {
+            try
+            {
+                LogDebug($"Preparing to download file: {file}");
+                LogDebug($"Download URI: {uriString}");
+                LogDebug($"Checksum: {checksum}");
+                LogDebug($"Version: {version}");
+
+                using (WebClient webClient = new WebClient())
+                {
+                    webClient.DownloadProgressChanged += Wc_DownloadProgressChanged;
+                    webClient.DownloadFileCompleted += Wc_DownloadFileCompleted;
+                    webClient.QueryString.Add("file", file.ToString());
+                    webClient.QueryString.Add("checksum", checksum.ToString());
+                    webClient.QueryString.Add("version", version.ToString());
+
+                    LogDebug("Starting file download...");
+                    webClient.DownloadFileAsync(new Uri(uriString), Path.Combine(installPath, file.ToString()));
+                    
+                    while (webClient.IsBusy)
+                        Thread.Sleep(100);
+
+                    LogDebug("File download completed.");
+                }
+                return true;
+            }
+            catch (UriFormatException ex)
+            {
+                LogDebug($"Invalid URI format: {ex.Message}");
+                throw;
+            }
+            catch (WebException ex)
+            {
+                LogDebug($"Web error occurred during download: {ex.Message}");
+                throw;
+            }
+            catch (Exception ex)
+            {
+                LogDebug($"An unexpected error occurred during download: {ex.Message}");
+                throw;
+            }
+        }
+       private static readonly object ConsoleWriterLock = new object();
+private int _lastProgress = -1;
+private int _lastConsoleLine = -1;
+
+private void Wc_DownloadProgressChanged(object sender, DownloadProgressChangedEventArgs e)
+{
+    var progress = (int)((double)e.BytesReceived / e.TotalBytesToReceive * 100);
+    if (progress != _lastProgress)
+    {
+        _log.Debug($"Downloading {stringUpdateFile}: {e.BytesReceived / 1024:n0} kb / {e.TotalBytesToReceive / 1024:n0} kb");
+        
+        int consoleWidth = Console.WindowWidth;
+        string progressText = $" [ Downloading {stringUpdateFile}: {e.BytesReceived / 1024:n0} kb / {e.TotalBytesToReceive / 1024:n0} kb ]";
+        int progressBarWidth = Math.Max(consoleWidth - progressText.Length - 7, 10); // Ensure minimum width of 10
+        int filledWidth = (int)((double)progress / 100 * progressBarWidth);
+        string progressBar = $"[{new string('■', filledWidth)}{new string(' ', progressBarWidth - filledWidth)}] {progress}%";
+        
+        string fullLine = (progressText + " " + progressBar).PadRight(consoleWidth);
+
+        lock (ConsoleWriterLock)
+        {
+            try
+            {
+                int currentLine = Console.CursorTop;
+                if (_lastConsoleLine == -1)
+                {
+                    _lastConsoleLine = currentLine;
+                }
+                else
+                {
+                    currentLine = _lastConsoleLine;
+                }
+
+                if (currentLine >= Console.BufferHeight - 1)
+                {
+                    Console.SetCursorPosition(0, Console.BufferHeight - 2);
+                    Console.WriteLine();
+                    currentLine = Console.CursorTop;
+                    _lastConsoleLine = currentLine;
+                }
+
+                Console.SetCursorPosition(0, currentLine);
+                Console.Write(fullLine);
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                // If we encounter an out of range error, reset the console cursor to a safe position
+                Console.SetCursorPosition(0, 0);
+                _lastConsoleLine = 0;
+            }
+        }
+        
+        _lastProgress = progress;
+    }
+}
+        private void Wc_DownloadFileCompleted(object sender, AsyncCompletedEventArgs e)
+        {
+            if (e.Error != null)
+            {
+                _log.Error("Download error", e.Error);
+                MessageBox.Show($"An error occurred while downloading: {e.Error.Message}");
+                return;
+            }
+
+            LogDebug("Download completed");
+            WebClient webClient = (WebClient)sender;
+            string file = webClient.QueryString["file"];
+            string checksum = webClient.QueryString["checksum"];
+            string version = webClient.QueryString["version"];
+
+            if (updateHandler.checkIfChecksumMatches(Path.Combine(installPath, file), checksum))
+            {
+                LogDebug("File checksum matches");
+                UnzipFile(Path.Combine(installPath, file), version);
+            }
+            else
+            {
+                _log.Error("File checksum mismatch");
+                MessageBox.Show("The download appears to be invalid. Please restart the launcher to try again.");
+            }
+        }
+        private static string CalculateMD5(string filename)
+        {
+            using (MD5 md5 = MD5.Create())
+            using (FileStream stream = File.OpenRead(filename))
+            {
+                byte[] hash = md5.ComputeHash(stream);
+                return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
+            }
+        }
+
+        private void EnablePlayButton()
+        {
+            LogDebug("Play button enabled");
+            enableLaunch = true;
+        }
+
+        private void LaunchGame()
+{
+    try
+    {
+        string clientPath = Path.Combine(installPath, "bin", "client", "Sb_client.exe");
+        LogDebug($"Launching game from: {clientPath}");
+        
+        bool isElevated = new WindowsPrincipal(WindowsIdentity.GetCurrent())
+            .IsInRole(WindowsBuiltInRole.Administrator);
+            
+        if (!isElevated)
+        {
+            ProcessStartInfo elevatedStart = new ProcessStartInfo
+            {
+                FileName = clientPath,
+                WorkingDirectory = Path.Combine(installPath, "bin", "client"),
+                UseShellExecute = true,
+                Verb = "runas"
+            };
+            Process.Start(elevatedStart);
+        }
+        else
+        {
+            ProcessStartInfo normalStart = new ProcessStartInfo
+            {
+                FileName = clientPath,
+                WorkingDirectory = Path.Combine(installPath, "bin", "client"),
+                UseShellExecute = false
+            };
+            Process.Start(normalStart);
+        }
+    }
+    catch (Exception e)
+    {
+        _log.Error("Error launching game", e);
+        MessageBox.Show($"Failed to launch the game: {e.Message}", "Launch Error", MessageBoxButton.OK, MessageBoxImage.Error);
+    }
+}
+    }
+    public class FFXIVhandler
+    {
+        private static string DecryptPassword(string encryptedPassword, string hash)
+        {
+            try
+            {
+                Console.WriteLine("Starting password decryption");
+                Console.WriteLine($"Hash received: {hash}");
+
+                byte[] encryptedBytes = Convert.FromBase64String(encryptedPassword);
+                Console.WriteLine($"Encrypted bytes length: {encryptedBytes.Length}");
+
+                byte[] keyBytes = Encoding.UTF8.GetBytes(hash.Substring(0, 16));
+                Console.WriteLine($"Key bytes length: {keyBytes.Length}");
+
+                byte[] decryptedBytes = new byte[encryptedBytes.Length];
+                for (int i = 0; i < encryptedBytes.Length; i++)
+                {
+                    decryptedBytes[i] = (byte)(encryptedBytes[i] ^ keyBytes[i % keyBytes.Length]);
+                }
+
+                string decryptedPassword = Encoding.UTF8.GetString(decryptedBytes);
+                Console.WriteLine("Decryption completed successfully");
+#if DEBUG
+                Console.WriteLine($"Decrypted password: {decryptedPassword}");
+#endif
+                return decryptedPassword;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error decrypting password: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                return null;
+            }
+        }
+
+
+
+
+
+        public static void HandleFFXivReq(string[] args)
+        {
+            string username = "";
+            string password = "";
+            string hash = "";
+            string otp = "";
+            string gamepath = "";
+            string issteams = "";
+            int expansionLevel = 0;
+            int region = 3;
+            int langs = 1;
+            bool dx11 = true;
+            bool isSteam = false;
+
+            var gateTask = Task.Run(() => networklogic.CheckGateStatus());
+    var loginTask = Task.Run(() => networklogic.CheckLoginStatus());
+    
+    Task.WaitAll(new[] { gateTask, loginTask }, 3000); // 3 second timeout for both checks
+    
+    if (!gateTask.Result || !loginTask.Result)
+    {
+        return;
+    }
+
+#if DEBUG
+            Console.WriteLine(args[0]);
+#else
+        Console.WriteLine("");
+#endif
+
+            if (args[0].Contains("?login="))
+            {
+                string usernameunsanitized = Program.TextFollowing(args[0], "login=");
+                if (usernameunsanitized.Contains(':'))
+                    username = usernameunsanitized.Split(':')[0];
+#if DEBUG
+                Console.WriteLine(username);
+#else
+            Console.Write("");
+#endif
+            }
+
+            if (args[0].Contains(":?pass="))
+            {
+                string passunsanitized = Program.TextFollowing(args[0], ":?pass=");
+                if (passunsanitized.Contains(':'))
+                {
+                    string encryptedPassword = passunsanitized.Split(':')[0];
+                    hash = Program.TextFollowing(args[0], ":?hash=").Split(':')[0];
+                    password = DecryptPassword(encryptedPassword, hash);
+                }
+#if DEBUG
+                Console.WriteLine(password);
+#else
+            Console.Write("");
+#endif
+            }
+
+            if (args[0].Contains(":?otp="))
+            {
+                string otpns = Program.TextFollowing(args[0], ":?otp=");
+                if (otpns.Contains(':'))
+                    otp = otpns.Split(':')[0];
+#if DEBUG
+                Console.WriteLine(otp);
+#else
+            Console.Write("");
+#endif
+            }
+
+            if (args[0].Contains(":?gamepath="))
+            {
+                string gamepathns = Program.TextFollowing(args[0], ":?gamepath=");
+                string gamepathcst = "";
+                string secsanitationstep = "";
+                string thirdsanitationstep = "";
+                if (gamepathns.Contains(":?"))
+                    gamepathcst = gamepathns.Split(":?")[0];
+                if (gamepathcst.Contains("%22"))
+                    secsanitationstep = gamepathcst.Replace("%22", "");
+                else
+                    secsanitationstep = gamepathcst;
+                if (gamepathcst.Contains("%5C"))
+                    thirdsanitationstep = secsanitationstep.Replace("%5C", "/");
+                gamepath = thirdsanitationstep;
+#if DEBUG
+                Console.WriteLine(gamepath);
+#else
+            Console.Write("");
+#endif
+            }
+
+            if (args[0].Contains(":?issteam="))
+            {
+                string issteamsns = Program.TextFollowing(args[0], ":?issteam=");
+                if (issteamsns.Contains(':'))
+                    issteams = issteamsns.Split(':')[0];
+#if DEBUG
+                Console.WriteLine(issteams);
+#else
+            Console.Write("");
+#endif
+                isSteam = issteams == "yes";
+            }
+
+            var xpacPath = "";
+            if (Program.ReturnXpacNum(1) == "ex1") xpacPath = "ex1";
+            if (Program.ReturnXpacNum(2) == "ex2") xpacPath = "ex2";
+            if (Program.ReturnXpacNum(3) == "ex3") xpacPath = "ex3";
+            if (Program.ReturnXpacNum(4) == "ex4") xpacPath = "ex4";
+
+            var sqpack = $@"{gamepath}\sqpack\{xpacPath}";
+            expansionLevel = xpacPath switch
+            {
+                "ex1" => 1,
+                "ex2" => 2,
+                "ex3" => 3,
+                "ex4" => 4,
+                _ => 0
+            };
+
+#if DEBUG
+            Console.WriteLine(expansionLevel);
+            Console.Write("\n");
+#endif
+
+            try
+            {
+                Console.WriteLine($"Attempting to get SID for user {username} at path {gamepath}");
+    var sid = networklogic.GetRealSid(gamepath, username, password, otp, isSteam);
+    
+    if (sid.Equals("BAD"))
+    {
+        Console.WriteLine("Failed to obtain valid SID");
+#if DEBUG
+            Console.WriteLine(sid);
+#else
+            Console.Write("");
+#endif
+        return;
+    }
+    
+    Console.WriteLine("SID obtained successfully, launching game...");
+    var ffxivGame = networklogic.LaunchGameAsync(gamepath, sid, langs, dx11, expansionLevel, isSteam, region);
+    
+    Console.WriteLine($"Game launch initiated with expansion level {expansionLevel}");
+    if (ffxivGame != null)
+    {
+        Console.WriteLine("Game process started successfully");
+    }
+            }
+            catch (Exception exc)
+            {
+                Console.WriteLine($"FFXIV Launch Error: {exc.Message}");
+    Console.WriteLine($"Stack trace: {exc.StackTrace}");
+    throw;
+            }
+        }
+    }
+
+}
+﻿using LibDalamud.Common.Util;
+using System.Text;
+using XIVLauncher.Common.Util;
+using static LibDalamud.Common.Util.PlatformHelpers;
+
+namespace LibDalamud
+{
+    [AttributeUsage(AttributeTargets.Field)]
+    public class SettingsDescriptionAttribute : Attribute
+    {
+        public string FriendlyName { get; set; }
+
+        public string Description { get; set; }
+
+        public SettingsDescriptionAttribute(string friendlyName, string description)
+        {
+            this.FriendlyName = friendlyName;
+            this.Description = description;
+        }
+    }
+    public static class RepoExtensions
+    {
+        public const string BASE_GAME_VERSION = "2012.01.01.0000.0000";
+        private static DirectoryInfo GetRepoPath(this Repository repo, DirectoryInfo gamePath)
+        {
+            switch (repo)
+            {
+                case Repository.Boot:
+                    return new DirectoryInfo(Path.Combine(gamePath.FullName, "boot"));
+                case Repository.Ffxiv:
+                    return new DirectoryInfo(Path.Combine(gamePath.FullName, "game"));
+                case Repository.Ex1:
+                    return new DirectoryInfo(Path.Combine(gamePath.FullName, "game", "sqpack", "ex1"));
+                case Repository.Ex2:
+                    return new DirectoryInfo(Path.Combine(gamePath.FullName, "game", "sqpack", "ex2"));
+                case Repository.Ex3:
+                    return new DirectoryInfo(Path.Combine(gamePath.FullName, "game", "sqpack", "ex3"));
+                case Repository.Ex4:
+                    return new DirectoryInfo(Path.Combine(gamePath.FullName, "game", "sqpack", "ex4"));
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(repo), repo, null);
+            }
+        }
+
+        public static FileInfo GetVerFile(this Repository repo, DirectoryInfo gamePath, bool isBck = false)
+        {
+            var repoPath = repo.GetRepoPath(gamePath).FullName;
+            switch (repo)
+            {
+                case Repository.Boot:
+                    return new FileInfo(Path.Combine(repoPath, "ffxivboot" + (isBck ? ".bck" : ".ver")));
+                case Repository.Ffxiv:
+                    return new FileInfo(Path.Combine(repoPath, "ffxivgame" + (isBck ? ".bck" : ".ver")));
+                case Repository.Ex1:
+                    return new FileInfo(Path.Combine(repoPath, "ex1" + (isBck ? ".bck" : ".ver")));
+                case Repository.Ex2:
+                    return new FileInfo(Path.Combine(repoPath, "ex2" + (isBck ? ".bck" : ".ver")));
+                case Repository.Ex3:
+                    return new FileInfo(Path.Combine(repoPath, "ex3" + (isBck ? ".bck" : ".ver")));
+                case Repository.Ex4:
+                    return new FileInfo(Path.Combine(repoPath, "ex4" + (isBck ? ".bck" : ".ver")));
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(repo), repo, null);
+            }
+        }
+
+        public static string GetVer(this Repository repo, DirectoryInfo gamePath, bool isBck = false)
+        {
+            var verFile = repo.GetVerFile(gamePath, isBck);
+
+            if (!verFile.Exists)
+                return BASE_GAME_VERSION;
+
+            var ver = File.ReadAllText(verFile.FullName);
+            return string.IsNullOrWhiteSpace(ver) ? BASE_GAME_VERSION : ver;
+        }
+
+        public static void SetVer(this Repository repo, DirectoryInfo gamePath, string newVer, bool isBck = false)
+        {
+            var verFile = GetVerFile(repo, gamePath, isBck);
+
+            if (!verFile.Directory.Exists)
+                verFile.Directory.Create();
+
+            using var fileStream = verFile.Open(FileMode.Create, FileAccess.Write, FileShare.None);
+            var buffer = Encoding.ASCII.GetBytes(newVer);
+            fileStream.Write(buffer, 0, buffer.Length);
+            fileStream.Flush();
+        }
+
+        public static bool IsBaseVer(this Repository repo, DirectoryInfo gamePath)
+        {
+            return repo.GetVer(gamePath) == BASE_GAME_VERSION;
+        }
+
+        // TODO
+        public static string GetRepoHash(this Repository repo)
+        {
+            switch (repo)
+            {
+                case Repository.Boot:
+                    return null;
+                case Repository.Ffxiv:
+                    return null;
+                case Repository.Ex1:
+                    return null;
+                case Repository.Ex2:
+                    return null;
+                case Repository.Ex3:
+                    return null;
+                case Repository.Ex4:
+                    return null;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(repo), repo, null);
+            }
+        }
+    }
+    public class Paths
+    {
+        static Paths()
+        {
+            RoamingPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "XIVLauncher");
+        }
+
+        public static string RoamingPath { get; private set; }
+
+        public static string ResourcesPath => Path.Combine(AppContext.BaseDirectory, "Resources");
+
+        public static void OverrideRoamingPath(string path)
+        {
+            RoamingPath = Environment.ExpandEnvironmentVariables(path);
+        }
+    }
+    public static class EnvironmentSettings
+    {
+        public static bool IsWine => CheckEnvBool("XL_WINEONLINUX");
+        public static bool IsHardwareRendered => CheckEnvBool("XL_HWRENDER");
+        public static bool IsDisableUpdates => CheckEnvBool("XL_NOAUTOUPDATE");
+        public static bool IsPreRelease => CheckEnvBool("XL_PRERELEASE");
+        public static bool IsNoRunas => CheckEnvBool("XL_NO_RUNAS");
+        public static bool IsIgnoreSpaceRequirements => CheckEnvBool("XL_NO_SPACE_REQUIREMENTS");
+        private static bool CheckEnvBool(string var) => bool.Parse(System.Environment.GetEnvironmentVariable(var) ?? "false");
+    }
+    public enum Repository
+    {
+        Boot,
+        Ffxiv,
+        Ex1,
+        Ex2,
+        Ex3,
+        Ex4
+    }
+    public static class ClientLanguageExtensions
+    {
+        public static string GetLangCode(this ClientLanguage language)
+        {
+            switch (language)
+            {
+                case ClientLanguage.Japanese:
+                    return "ja";
+
+                case ClientLanguage.English when GameHelpers.IsRegionNorthAmerica():
+                    return "en-us";
+
+                case ClientLanguage.English:
+                    return "en-gb";
+
+                case ClientLanguage.German:
+                    return "de";
+
+                case ClientLanguage.French:
+                    return "fr";
+
+                default:
+                    return "en-gb";
+            }
+        }
+    }
+    public enum ClientLanguage
+    {
+        Japanese,
+        English,
+        German,
+        French
+    }
+    public enum DpiAwareness
+    {
+        Aware,
+        Unaware,
+    }
+    public static class Constants
+    {
+        public const string BASE_GAME_VERSION = "2012.01.01.0000.0000";
+
+        public const uint STEAM_APP_ID = 39210;
+        public const uint STEAM_FT_APP_ID = 312060;
+
+        public static string PatcherUserAgent => GetPatcherUserAgent(PlatformHelpers.GetPlatform());
+
+        private static string GetPatcherUserAgent(Platform platform)
+        {
+            switch (platform)
+            {
+                case Platform.Win32:
+                case Platform.Win32OnLinux:
+                    return "FFXIV PATCH CLIENT";
+
+                case Platform.Mac:
+                    return "FFXIV-MAC PATCH CLIENT";
+
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(platform), platform, null);
+            }
+        }
+    }
+}﻿using System;
+using System.Collections.Specialized;
+using System.Diagnostics;
+using System.IO;
+using System.Net.Security;
+using System.Net;
+using System.Security.Cryptography;
+using System.Text.RegularExpressions;
+using System.Text;
+using System.Linq;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+using System.Threading;
+
+
+namespace LibLaunchSupport 
+{
+    public enum DpiAwareness
+    {
+        Aware,
+        Unaware,
+    }
+    public interface IGameRunner
+    {
+        Process? Start(string path, string workingDirectory, string arguments, IDictionary<string, string> environment, DpiAwareness dpiAwareness);
+    }
+    public static class NativeAclFix
+    {
+        // Definitions taken from PInvoke.net (with some changes)
+        private static class PInvoke
+        {
+            #region Constants
+            public const UInt32 STANDARD_RIGHTS_ALL = 0x001F0000;
+            public const UInt32 SPECIFIC_RIGHTS_ALL = 0x0000FFFF;
+            public const UInt32 PROCESS_VM_WRITE = 0x0020;
+
+            public const UInt32 GRANT_ACCESS = 1;
+
+            public const UInt32 SECURITY_DESCRIPTOR_REVISION = 1;
+
+            public const UInt32 CREATE_SUSPENDED = 0x00000004;
+
+            public const UInt32 TOKEN_QUERY = 0x0008;
+            public const UInt32 TOKEN_ADJUST_PRIVILEGES = 0x0020;
+
+            public const UInt32 PRIVILEGE_SET_ALL_NECESSARY = 1;
+
+            public const UInt32 SE_PRIVILEGE_ENABLED = 0x00000002;
+            public const UInt32 SE_PRIVILEGE_REMOVED = 0x00000004;
+
+
+            public enum MULTIPLE_TRUSTEE_OPERATION
+            {
+                NO_MULTIPLE_TRUSTEE,
+                TRUSTEE_IS_IMPERSONATE
+            }
+
+            public enum TRUSTEE_FORM
+            {
+                TRUSTEE_IS_SID,
+                TRUSTEE_IS_NAME,
+                TRUSTEE_BAD_FORM,
+                TRUSTEE_IS_OBJECTS_AND_SID,
+                TRUSTEE_IS_OBJECTS_AND_NAME
+            }
+
+            public enum TRUSTEE_TYPE
+            {
+                TRUSTEE_IS_UNKNOWN,
+                TRUSTEE_IS_USER,
+                TRUSTEE_IS_GROUP,
+                TRUSTEE_IS_DOMAIN,
+                TRUSTEE_IS_ALIAS,
+                TRUSTEE_IS_WELL_KNOWN_GROUP,
+                TRUSTEE_IS_DELETED,
+                TRUSTEE_IS_INVALID,
+                TRUSTEE_IS_COMPUTER
+            }
+
+            public enum SE_OBJECT_TYPE
+            {
+                SE_UNKNOWN_OBJECT_TYPE,
+                SE_FILE_OBJECT,
+                SE_SERVICE,
+                SE_PRINTER,
+                SE_REGISTRY_KEY,
+                SE_LMSHARE,
+                SE_KERNEL_OBJECT,
+                SE_WINDOW_OBJECT,
+                SE_DS_OBJECT,
+                SE_DS_OBJECT_ALL,
+                SE_PROVIDER_DEFINED_OBJECT,
+                SE_WMIGUID_OBJECT,
+                SE_REGISTRY_WOW64_32KEY
+            }
+            public enum SECURITY_INFORMATION
+            {
+                OWNER_SECURITY_INFORMATION = 1,
+                GROUP_SECURITY_INFORMATION = 2,
+                DACL_SECURITY_INFORMATION = 4,
+                SACL_SECURITY_INFORMATION = 8,
+                UNPROTECTED_SACL_SECURITY_INFORMATION = 0x10000000,
+                UNPROTECTED_DACL_SECURITY_INFORMATION = 0x20000000,
+                PROTECTED_SACL_SECURITY_INFORMATION = 0x40000000
+            }
+            #endregion
+
+
+            #region Structures
+            [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto, Pack = 0)]
+            public struct TRUSTEE : IDisposable
+            {
+                public IntPtr pMultipleTrustee;
+                public MULTIPLE_TRUSTEE_OPERATION MultipleTrusteeOperation;
+                public TRUSTEE_FORM TrusteeForm;
+                public TRUSTEE_TYPE TrusteeType;
+                private IntPtr ptstrName;
+
+                void IDisposable.Dispose()
+                {
+                    if (ptstrName != IntPtr.Zero) Marshal.Release(ptstrName);
+                }
+
+                public string Name { get { return Marshal.PtrToStringAuto(ptstrName); } }
+            }
+
+            [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto, Pack = 0)]
+            public struct EXPLICIT_ACCESS
+            {
+                uint grfAccessPermissions;
+                uint grfAccessMode;
+                uint grfInheritance;
+                TRUSTEE Trustee;
+            }
+
+            [StructLayout(LayoutKind.Sequential)]
+            public struct SECURITY_DESCRIPTOR
+            {
+                public byte Revision;
+                public byte Sbz1;
+                public UInt16 Control;
+                public IntPtr Owner;
+                public IntPtr Group;
+                public IntPtr Sacl;
+                public IntPtr Dacl;
+            }
+
+            [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+            public struct STARTUPINFO
+            {
+                public Int32 cb;
+                public string lpReserved;
+                public string lpDesktop;
+                public string lpTitle;
+                public Int32 dwX;
+                public Int32 dwY;
+                public Int32 dwXSize;
+                public Int32 dwYSize;
+                public Int32 dwXCountChars;
+                public Int32 dwYCountChars;
+                public Int32 dwFillAttribute;
+                public Int32 dwFlags;
+                public Int16 wShowWindow;
+                public Int16 cbReserved2;
+                public IntPtr lpReserved2;
+                public IntPtr hStdInput;
+                public IntPtr hStdOutput;
+                public IntPtr hStdError;
+            }
+
+            [StructLayout(LayoutKind.Sequential)]
+            public struct PROCESS_INFORMATION
+            {
+                public IntPtr hProcess;
+                public IntPtr hThread;
+                public int dwProcessId;
+                public UInt32 dwThreadId;
+            }
+
+            [StructLayout(LayoutKind.Sequential)]
+            public struct SECURITY_ATTRIBUTES
+            {
+                public int nLength;
+                public IntPtr lpSecurityDescriptor;
+                public bool bInheritHandle;
+            }
+
+            [StructLayout(LayoutKind.Sequential)]
+            public struct LUID
+            {
+                public UInt32 LowPart;
+                public Int32 HighPart;
+            }
+
+            [StructLayout(LayoutKind.Sequential)]
+            public struct PRIVILEGE_SET
+            {
+                public UInt32 PrivilegeCount;
+                public UInt32 Control;
+                [MarshalAs(UnmanagedType.ByValArray, SizeConst = 1)]
+                public LUID_AND_ATTRIBUTES[] Privilege;
+            }
+
+            public struct LUID_AND_ATTRIBUTES
+            {
+                public LUID Luid;
+                public UInt32 Attributes;
+            }
+
+            [StructLayout(LayoutKind.Sequential)]
+            public struct TOKEN_PRIVILEGES
+            {
+                public UInt32 PrivilegeCount;
+                [MarshalAs(UnmanagedType.ByValArray, SizeConst = 1)]
+                public LUID_AND_ATTRIBUTES[] Privileges;
+            }
+            #endregion
+
+
+            #region Methods
+            [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+            public static extern void BuildExplicitAccessWithName(
+                ref EXPLICIT_ACCESS pExplicitAccess,
+                string pTrusteeName,
+                uint AccessPermissions,
+                uint AccessMode,
+                uint Inheritance);
+
+            [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+            public static extern int SetEntriesInAcl(
+                int cCountOfExplicitEntries,
+                ref EXPLICIT_ACCESS pListOfExplicitEntries,
+                IntPtr OldAcl,
+                out IntPtr NewAcl);
+
+            [DllImport("advapi32.dll", SetLastError = true)]
+            public static extern bool InitializeSecurityDescriptor(
+                out SECURITY_DESCRIPTOR pSecurityDescriptor,
+                uint dwRevision);
+
+            [DllImport("advapi32.dll", SetLastError = true)]
+            public static extern bool SetSecurityDescriptorDacl(
+                ref SECURITY_DESCRIPTOR pSecurityDescriptor,
+                bool bDaclPresent,
+                IntPtr pDacl,
+                bool bDaclDefaulted);
+
+            [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+            public static extern bool CreateProcess(
+               string lpApplicationName,
+               string lpCommandLine,
+               ref SECURITY_ATTRIBUTES lpProcessAttributes,
+               IntPtr lpThreadAttributes,
+               bool bInheritHandles,
+               UInt32 dwCreationFlags,
+               IntPtr lpEnvironment,
+               string lpCurrentDirectory,
+               [In] ref STARTUPINFO lpStartupInfo,
+               out PROCESS_INFORMATION lpProcessInformation);
+
+            [DllImport("kernel32.dll", SetLastError = true)]
+            public static extern bool CloseHandle(IntPtr hObject);
+
+            [DllImport("kernel32.dll", SetLastError = true)]
+            public static extern uint ResumeThread(IntPtr hThread);
+
+            [DllImport("advapi32.dll", SetLastError = true)]
+            public static extern bool OpenProcessToken(
+                IntPtr ProcessHandle,
+                UInt32 DesiredAccess,
+                out IntPtr TokenHandle);
+
+            [DllImport("advapi32.dll", SetLastError = true)]
+            public static extern bool LookupPrivilegeValue(string lpSystemName, string lpName, ref LUID lpLuid);
+
+            [DllImport("advapi32.dll", SetLastError = true)]
+            public static extern bool PrivilegeCheck(
+                IntPtr ClientToken,
+                ref PRIVILEGE_SET RequiredPrivileges,
+                out bool pfResult);
+
+            [DllImport("advapi32.dll", SetLastError = true)]
+            public static extern bool AdjustTokenPrivileges(
+                IntPtr TokenHandle,
+                bool DisableAllPrivileges,
+                ref TOKEN_PRIVILEGES NewState,
+                UInt32 BufferLengthInBytes,
+                IntPtr PreviousState,
+                UInt32 ReturnLengthInBytes);
+
+            [DllImport("advapi32.dll", SetLastError = true)]
+            public static extern uint GetSecurityInfo(
+                IntPtr handle,
+                SE_OBJECT_TYPE ObjectType,
+                SECURITY_INFORMATION SecurityInfo,
+                IntPtr pSidOwner,
+                IntPtr pSidGroup,
+                out IntPtr pDacl,
+                IntPtr pSacl,
+                IntPtr pSecurityDescriptor);
+
+            [DllImport("advapi32.dll", SetLastError = true)]
+            public static extern uint SetSecurityInfo(
+                IntPtr handle,
+                SE_OBJECT_TYPE ObjectType,
+                SECURITY_INFORMATION SecurityInfo,
+                IntPtr psidOwner,
+                IntPtr psidGroup,
+                IntPtr pDacl,
+                IntPtr pSacl);
+
+            [DllImport("kernel32.dll", SetLastError = true)]
+            public static extern IntPtr GetCurrentProcess();
+            #endregion
+        }
+
+        public static Process LaunchGame(string workingDir, string exePath, string arguments, IDictionary<string, string> envVars, DpiAwareness dpiAwareness, Action<Process> beforeResume)
+        {
+            Process process = null;
+
+            var userName = Environment.UserName;
+
+            var pExplicitAccess = new PInvoke.EXPLICIT_ACCESS();
+            PInvoke.BuildExplicitAccessWithName(
+                ref pExplicitAccess,
+                userName,
+                PInvoke.STANDARD_RIGHTS_ALL | PInvoke.SPECIFIC_RIGHTS_ALL & ~PInvoke.PROCESS_VM_WRITE,
+                PInvoke.GRANT_ACCESS,
+                0);
+
+            if (PInvoke.SetEntriesInAcl(1, ref pExplicitAccess, IntPtr.Zero, out var newAcl) != 0)
+            {
+                throw new Win32Exception(Marshal.GetLastWin32Error());
+            }
+
+            var secDesc = new PInvoke.SECURITY_DESCRIPTOR();
+
+            if (!PInvoke.InitializeSecurityDescriptor(out secDesc, PInvoke.SECURITY_DESCRIPTOR_REVISION))
+            {
+                throw new Win32Exception(Marshal.GetLastWin32Error());
+            }
+
+            if (!PInvoke.SetSecurityDescriptorDacl(ref secDesc, true, newAcl, false))
+            {
+                throw new Win32Exception(Marshal.GetLastWin32Error());
+            }
+
+            var psecDesc = Marshal.AllocHGlobal(Marshal.SizeOf<PInvoke.SECURITY_DESCRIPTOR>());
+            Marshal.StructureToPtr<PInvoke.SECURITY_DESCRIPTOR>(secDesc, psecDesc, true);
+
+            var lpProcessInformation = new PInvoke.PROCESS_INFORMATION();
+            var lpEnvironment = IntPtr.Zero;
+
+            try
+            {
+                if (envVars.Count > 0)
+                {
+                    string envstr = string.Join("\0", envVars.Select(entry => entry.Key + "=" + entry.Value));
+
+                    lpEnvironment = Marshal.StringToHGlobalAnsi(envstr);
+                }
+
+                var lpProcessAttributes = new PInvoke.SECURITY_ATTRIBUTES
+                {
+                    nLength = Marshal.SizeOf<PInvoke.SECURITY_ATTRIBUTES>(),
+                    lpSecurityDescriptor = psecDesc,
+                    bInheritHandle = false
+                };
+
+                var lpStartupInfo = new PInvoke.STARTUPINFO
+                {
+                    cb = Marshal.SizeOf<PInvoke.STARTUPINFO>()
+                };
+
+                var compatLayerPrev = Environment.GetEnvironmentVariable("__COMPAT_LAYER");
+
+                var compat = "RunAsInvoker ";
+                compat += dpiAwareness switch
+                {
+                    DpiAwareness.Aware => "HighDPIAware",
+                    DpiAwareness.Unaware => "DPIUnaware",
+                    _ => throw new ArgumentOutOfRangeException()
+                };
+                Environment.SetEnvironmentVariable("__COMPAT_LAYER", compat);
+
+                if (!PInvoke.CreateProcess(
+                        null,
+                        $"\"{exePath}\" {arguments}",
+                        ref lpProcessAttributes,
+                        IntPtr.Zero,
+                        false,
+                        PInvoke.CREATE_SUSPENDED,
+                        IntPtr.Zero,
+                        workingDir,
+                        ref lpStartupInfo,
+                        out lpProcessInformation))
+                {
+                    throw new Win32Exception(Marshal.GetLastWin32Error());
+                }
+
+                Environment.SetEnvironmentVariable("__COMPAT_LAYER", compatLayerPrev);
+
+                DisableSeDebug(lpProcessInformation.hProcess);
+
+                process = new ExistingProcess(lpProcessInformation.hProcess);
+
+                beforeResume?.Invoke(process);
+
+                PInvoke.ResumeThread(lpProcessInformation.hThread);
+
+                // Ensure that the game main window is prepared
+                try
+                {
+                    do
+                    {
+                        process.WaitForInputIdle();
+
+                        Thread.Sleep(100);
+                    } while (IntPtr.Zero == TryFindGameWindow(process));
+                }
+                catch (InvalidOperationException)
+                {
+                    throw new GameExitedException();
+                }
+
+                if (PInvoke.GetSecurityInfo(
+                        PInvoke.GetCurrentProcess(),
+                        PInvoke.SE_OBJECT_TYPE.SE_KERNEL_OBJECT,
+                        PInvoke.SECURITY_INFORMATION.DACL_SECURITY_INFORMATION,
+                        IntPtr.Zero, IntPtr.Zero,
+                        out var pACL,
+                        IntPtr.Zero, IntPtr.Zero) != 0)
+                {
+                    throw new Win32Exception(Marshal.GetLastWin32Error());
+                }
+
+                if (PInvoke.SetSecurityInfo(
+                        lpProcessInformation.hProcess,
+                        PInvoke.SE_OBJECT_TYPE.SE_KERNEL_OBJECT,
+                        PInvoke.SECURITY_INFORMATION.DACL_SECURITY_INFORMATION |
+                        PInvoke.SECURITY_INFORMATION.UNPROTECTED_DACL_SECURITY_INFORMATION,
+                        IntPtr.Zero, IntPtr.Zero, pACL, IntPtr.Zero) != 0)
+                {
+                    throw new Win32Exception(Marshal.GetLastWin32Error());
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message, "[NativeAclFix] Uncaught error during initialization, trying to kill process");
+
+                try
+                {
+                    process?.Kill();
+                }
+                catch (Exception killEx)
+                {
+                    Console.WriteLine(killEx.Message, "[NativeAclFix] Could not kill process");
+                }
+
+                throw;
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(psecDesc);
+
+                if (!IntPtr.Equals(lpEnvironment, IntPtr.Zero))
+                {
+                    Marshal.FreeHGlobal(lpEnvironment);
+                }
+
+                PInvoke.CloseHandle(lpProcessInformation.hThread);
+            }
+
+            return process;
+        }
+
+        private static void DisableSeDebug(IntPtr ProcessHandle)
+        {
+            if (!PInvoke.OpenProcessToken(ProcessHandle, PInvoke.TOKEN_QUERY | PInvoke.TOKEN_ADJUST_PRIVILEGES, out var TokenHandle))
+            {
+                throw new Win32Exception(Marshal.GetLastWin32Error());
+            }
+
+            var luidDebugPrivilege = new PInvoke.LUID();
+            if (!PInvoke.LookupPrivilegeValue(null, "SeDebugPrivilege", ref luidDebugPrivilege))
+            {
+                throw new Win32Exception(Marshal.GetLastWin32Error());
+            }
+
+            var RequiredPrivileges = new PInvoke.PRIVILEGE_SET
+            {
+                PrivilegeCount = 1,
+                Control = PInvoke.PRIVILEGE_SET_ALL_NECESSARY,
+                Privilege = new PInvoke.LUID_AND_ATTRIBUTES[1]
+            };
+
+            RequiredPrivileges.Privilege[0].Luid = luidDebugPrivilege;
+            RequiredPrivileges.Privilege[0].Attributes = PInvoke.SE_PRIVILEGE_ENABLED;
+
+            if (!PInvoke.PrivilegeCheck(TokenHandle, ref RequiredPrivileges, out bool bResult))
+            {
+                throw new Win32Exception(Marshal.GetLastWin32Error());
+            }
+
+            if (bResult) // SeDebugPrivilege is enabled; try disabling it
+            {
+                var TokenPrivileges = new PInvoke.TOKEN_PRIVILEGES
+                {
+                    PrivilegeCount = 1,
+                    Privileges = new PInvoke.LUID_AND_ATTRIBUTES[1]
+                };
+
+                TokenPrivileges.Privileges[0].Luid = luidDebugPrivilege;
+                TokenPrivileges.Privileges[0].Attributes = PInvoke.SE_PRIVILEGE_REMOVED;
+
+                if (!PInvoke.AdjustTokenPrivileges(TokenHandle, false, ref TokenPrivileges, 0, IntPtr.Zero, 0))
+                {
+                    throw new Win32Exception(Marshal.GetLastWin32Error());
+                }
+            }
+
+            PInvoke.CloseHandle(TokenHandle);
+        }
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern IntPtr FindWindowEx(IntPtr parentHandle, IntPtr hWndChildAfter, string className, IntPtr windowTitle);
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        static extern bool IsWindowVisible(IntPtr hWnd);
+
+        private static IntPtr TryFindGameWindow(Process process)
+        {
+            IntPtr hwnd = IntPtr.Zero;
+            while (IntPtr.Zero != (hwnd = FindWindowEx(IntPtr.Zero, hwnd, "FFXIVGAME", IntPtr.Zero)))
+            {
+                GetWindowThreadProcessId(hwnd, out uint pid);
+
+                if (pid == process.Id && IsWindowVisible(hwnd))
+                {
+                    break;
+                }
+            }
+            return hwnd;
+        }
+    }
+    public class WindowsGameRunner : IGameRunner
+    {
+        private readonly DalamudLauncher dalamudLauncher;
+        private readonly bool dalamudOk;
+        private readonly DirectoryInfo dotnetRuntimePath;
+
+        public WindowsGameRunner(DalamudLauncher dalamudLauncher, bool dalamudOk, DirectoryInfo dotnetRuntimePath)
+        {
+            this.dalamudLauncher = dalamudLauncher;
+            this.dalamudOk = dalamudOk;
+            this.dotnetRuntimePath = dotnetRuntimePath;
+        }
+
+        public Process Start(string path, string workingDirectory, string arguments, IDictionary<string, string> environment, DpiAwareness dpiAwareness)
+        {
+            if (dalamudOk)
+            {
+                var compat = "RunAsInvoker ";
+                compat += dpiAwareness switch
+                {
+                    DpiAwareness.Aware => "HighDPIAware",
+                    DpiAwareness.Unaware => "DPIUnaware",
+                    _ => throw new ArgumentOutOfRangeException()
+                };
+                environment.Add("__COMPAT_LAYER", compat);
+
+                var prevDalamudRuntime = Environment.GetEnvironmentVariable("DALAMUD_RUNTIME");
+                if (string.IsNullOrWhiteSpace(prevDalamudRuntime))
+                    environment.Add("DALAMUD_RUNTIME", dotnetRuntimePath.FullName);
+
+                return this.dalamudLauncher.Run(new FileInfo(path), arguments, environment);
+            }
+            else
+            {
+                return NativeAclFix.LaunchGame(workingDirectory, path, arguments, environment, dpiAwareness, process => { });
+            }
+        }
+    }
+    public enum LoginAction
+    {
+        Game,
+        GameNoDalamud,
+        GameNoLaunch,
+        Repair,
+        Fake,
+    }
+    public class networklogic
+    {
+        private static readonly string UserAgentTemplate = "SQEXAuthor/2.0.0(Windows 6.2; ja-jp; {0})";
+
+        private static readonly string UserAgent = GenerateUserAgent();
+
+        public static Process LaunchGame(string gamePath, string realsid, int language, bool dx11, int expansionlevel, bool isSteam, int region)
+        {
+            try
+            {
+                Process ffxivgame = new Process();
+                if (dx11 == true)
+                {
+                    ffxivgame.StartInfo.FileName = gamePath + "/game/ffxiv_dx11.exe";
+                }
+                else
+                {
+                    ffxivgame.StartInfo.FileName = gamePath + "/game/ffxiv.exe";
+                }
+                ffxivgame.StartInfo.Arguments = $"DEV.TestSID={realsid} DEV.MaxEntitledExpansionID={expansionlevel} language={language} region={region}";
+                if (isSteam)
+                {
+                    ffxivgame.StartInfo.Environment.Add("IS_FFXIV_LAUNCH_FROM_STEAM", "1");
+                    ffxivgame.StartInfo.Arguments += " IsSteam=1";
+                    ffxivgame.StartInfo.UseShellExecute = false;
+                }
+                ffxivgame.Start();
+                return ffxivgame;
+            }
+            catch (Exception exc)
+            {
+                if (language == 0)
+                {
+                    Debug.WriteLine("実行可能ファイルを起動できませんでした。 ゲームパスは正しいですか? " + exc);
+                }
+                if (language == 1)
+                {
+                    Debug.WriteLine("Could not launch executable. Is your game path correct? " + exc);
+                }
+                if (language == 2)
+                {
+                    Debug.WriteLine("Die ausführbare Datei konnte nicht gestartet werden. Ist dein Spielpfad korrekt? " + exc);
+                }
+                if (language == 3)
+                {
+                    Debug.WriteLine("Impossible de lancer l'exécutable. Votre chemin de jeu est-il correct? " + exc);
+                }
+                if (language == 4)
+                {
+                    Debug.WriteLine("Не удалось запустить файл. Ввели ли вы корректный путь к игре? " + exc);
+                }
+
+            }
+
+            return null;
+        }
+
+        public static string GetRealSid(string gamePath, string username, string password, string otp, bool isSteam)
+        {
+            string hashstr = "";
+            try
+            {
+                // make the string of hashed files to prove game version//make the string of hashed files to prove game version
+                hashstr = "ffxivboot.exe/" + GenerateHash(gamePath + "/boot/ffxivboot.exe") +
+                          ",ffxivboot64.exe/" + GenerateHash(gamePath + "/boot/ffxivboot64.exe") +
+                          ",ffxivlauncher.exe/" + GenerateHash(gamePath + "/boot/ffxivlauncher.exe") +
+                          ",ffxivlauncher64.exe/" + GenerateHash(gamePath + "/boot/ffxivlauncher64.exe") +
+                          ",ffxivupdater.exe/" + GenerateHash(gamePath + "/boot/ffxivupdater.exe") +
+                          ",ffxivupdater64.exe/" + GenerateHash(gamePath + "/boot/ffxivupdater64.exe");
+            }
+            catch (Exception exc)
+            {
+                Debug.WriteLine("Could not generate hashes. Is your game path correct? " + exc);
+            }
+
+            WebClient sidClient = new WebClient();
+            sidClient.Headers.Add("X-Hash-Check", "enabled");
+            sidClient.Headers.Add("user-agent", UserAgent);
+            sidClient.Headers.Add("Referer", "https://ffxiv-login.square-enix.com/oauth/ffxivarr/login/top?lng=en&rgn=3");
+            sidClient.Headers.Add("Content-Type", "application/x-www-form-urlencoded");
+
+            InitiateSslTrust();
+
+            try
+            {
+                var localGameVer = GetLocalGamever(gamePath);
+                var localSid = GetSid(username, password, otp, isSteam);
+
+                if (localGameVer.Equals("BAD") || localSid.Equals("BAD"))
+                {
+                    return "BAD";
+                }
+
+                var url = "https://patch-gamever.ffxiv.com/http/win32/ffxivneo_release_game/" + localGameVer + "/" + localSid;
+                sidClient.UploadString(url, hashstr); //request real session id
+            }
+            catch (Exception exc)
+            {
+                Debug.WriteLine($"Unable to retrieve a session ID from the server.\n" + exc);
+            }
+
+            return sidClient.ResponseHeaders["X-Patch-Unique-Id"];
+        }
+
+        private static string GetStored(bool isSteam) //this is needed to be able to access the login site correctly
+        {
+            WebClient loginInfo = new WebClient();
+            loginInfo.Headers.Add("user-agent", UserAgent);
+            string reply = loginInfo.DownloadString(string.Format("https://ffxiv-login.square-enix.com/oauth/ffxivarr/login/top?lng=en&rgn=3&isft=0&issteam={0}", isSteam ? 1 : 0));
+
+            Regex storedre = new Regex(@"\t<\s*input .* name=""_STORED_"" value=""(?<stored>.*)"">");
+
+            var stored = storedre.Matches(reply)[0].Groups["stored"].Value;
+            return stored;
+        }
+
+        public static string GetSid(string username, string password, string otp, bool isSteam)
+        {
+            using (WebClient loginData = new WebClient())
+            {
+                loginData.Headers.Add("user-agent", UserAgent);
+                loginData.Headers.Add("Referer", string.Format("https://ffxiv-login.square-enix.com/oauth/ffxivarr/login/top?lng=en&rgn=3&isft=0&issteam={0}", isSteam ? 1 : 0));
+                loginData.Headers.Add("Content-Type", "application/x-www-form-urlencoded");
+
+                try
+                {
+                    byte[] response =
+                        loginData.UploadValues("https://ffxiv-login.square-enix.com/oauth/ffxivarr/login/login.send", new NameValueCollection() //get the session id with user credentials
+                        {
+                            { "_STORED_", GetStored(isSteam) },
+                            { "sqexid", username },
+                            { "password", password },
+                            { "otppw", otp }
+                        });
+
+                    string reply = System.Text.Encoding.UTF8.GetString(response);
+                    //Debug.WriteLine(reply);
+                    Regex sidre = new Regex(@"sid,(?<sid>.*),terms");
+                    var matches = sidre.Matches(reply);
+                    if (matches.Count == 0)
+                    {
+                        if (reply.Contains("ID or password is incorrect"))
+                        {
+                            Debug.WriteLine("Incorrect username or password.");
+                            return "BAD";
+                        }
+                    }
+
+                    var sid = sidre.Matches(reply)[0].Groups["sid"].Value;
+                    return sid;
+                }
+                catch (Exception exc)
+                {
+                    Debug.WriteLine($"Something failed when attempting to request a session ID.\n" + exc);
+                    return "BAD";
+                }
+            }
+        }
+
+        private static string GetLocalGamever(string gamePath)
+        {
+            try
+            {
+                using (StreamReader sr = new StreamReader(gamePath + @"/game/ffxivgame.ver"))
+                {
+                    string line = sr.ReadToEnd();
+                    return line;
+                }
+            }
+            catch (Exception exc)
+            {
+                Debug.WriteLine("Unable to get local game version.\n" + exc);
+                return "BAD";
+            }
+        }
+
+        private static string GenerateHash(string file)
+        {
+            byte[] filebytes = File.ReadAllBytes(file);
+
+            var hash = (new SHA1Managed()).ComputeHash(filebytes);
+            string hashstring = string.Join("", hash.Select(b => b.ToString("x2")).ToArray());
+
+            long length = new FileInfo(file).Length;
+
+            return length + "/" + hashstring;
+        }
+
+        public static bool GetGateStatus()
+        {
+            try
+            {
+                using (WebClient client = new WebClient())
+                {
+                    string reply = client.DownloadString("http://frontier.ffxiv.com/worldStatus/gate_status.json");
+
+                    return Convert.ToBoolean(int.Parse(reply[10].ToString()));
+                }
+            }
+            catch (Exception exc)
+            {
+                Debug.WriteLine("Failed getting gate status. " + exc);
+                return false;
+            }
+
+        }
+
+        private static void InitiateSslTrust()
+        {
+            //Change SSL checks so that all checks pass, squares gamever server does strange things
+            ServicePointManager.ServerCertificateValidationCallback =
+                new RemoteCertificateValidationCallback(
+                    delegate
+                    { return true; }
+                );
+        }
+
+
+        private static string GenerateUserAgent()
+        {
+            return string.Format(UserAgentTemplate, MakeComputerId());
+        }
+
+        private static string MakeComputerId()
+        {
+            var hashString = Environment.MachineName + Environment.UserName + Environment.OSVersion +
+                             Environment.ProcessorCount;
+
+            using (var sha1 = HashAlgorithm.Create("SHA1"))
+            {
+                var bytes = new byte[5];
+
+                Array.Copy(sha1.ComputeHash(Encoding.Unicode.GetBytes(hashString)), 0, bytes, 1, 4);
+
+                var checkSum = (byte)-(bytes[1] + bytes[2] + bytes[3] + bytes[4]);
+                bytes[0] = checkSum;
+
+                return BitConverter.ToString(bytes).Replace("-", "").ToLower();
+            }
+        }
+    }
+
+}
+using System;
+using System.Linq;
+using System.Net.Http.Headers;
+
+namespace XIVLauncher.Common.Util;
+
+public static class ApiHelpers
+{
+    public static long GetUnixMillis()
+    {
+        return (long)DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1)).TotalMilliseconds;
+    }
+
+    public static string BytesToString(double byteCount) => BytesToString(Convert.ToInt64(Math.Floor(byteCount)));
+
+    public static string BytesToString(long byteCount)
+    {
+        string[] suf = { "B", "KB", "MB", "GB", "TB", "PB", "EB" }; //Longs run out around EB
+
+        if (byteCount == 0)
+            return "0" + suf[0];
+
+        var bytes = Math.Abs(byteCount);
+        var place = Convert.ToInt32(Math.Floor(Math.Log(bytes, 1024)));
+        var num = Math.Round(bytes / Math.Pow(1024, place), 1);
+        return $"{(Math.Sign(byteCount) * num):#0.0}{suf[place]}";
+    }
+
+    public static string GenerateAcceptLanguage(int asdf = 0)
+    {
+        var codes = new string[] { "de-DE", "en-US", "ja" };
+        var codesMany = new string[] { "de-DE", "en-US,en", "en-GB,en", "fr-BE,fr", "ja", "fr-FR,fr", "fr-CH,fr" };
+        var rng = new Random(asdf);
+
+        var many = rng.Next(10) < 3;
+
+        if (many)
+        {
+            var howMany = rng.Next(2, 4);
+            var deck = codesMany.OrderBy((x) => rng.Next()).Take(howMany).ToArray();
+
+            var hdr = string.Empty;
+
+            for (int i = 0; i < deck.Count(); i++)
+            {
+                hdr += deck.ElementAt(i) + $";q=0.{10 - (i + 1)}";
+
+                if (i != deck.Length - 1)
+                    hdr += ";";
+            }
+
+            return hdr;
+        }
+
+        return codes[rng.Next(0, codes.Length)];
+    }
+
+    public static void AddWithoutValidation(this HttpHeaders headers, string key, string value)
+    {
+        var res = headers.TryAddWithoutValidation(key, value);
+
+        if (!res)
+            throw new InvalidOperationException($"Could not add header - {key}: {value}");
+    }
+
+    /// <summary>
+    /// Gets an attribute on an enum.
+    /// </summary>
+    /// <typeparam name="TAttribute">The type of attribute to get.</typeparam>
+    /// <param name="value">The enum value that has an attached attribute.</param>
+    /// <returns>The attached attribute, if any.</returns>
+    public static TAttribute? GetAttribute<TAttribute>(this Enum value)
+        where TAttribute : Attribute
+    {
+        var type = value.GetType();
+        var memInfo = type.GetMember(value.ToString());
+        var attributes = memInfo[0].GetCustomAttributes(typeof(TAttribute), false);
+        return (attributes.Length > 0) ? (TAttribute)attributes[0] : null;
+    }
+}
+using System;
+using System.Text;
+
+namespace XIVLauncher.Common.Util;
+
+public static class DebugHelpers
+{
+    /// <summary>
+    /// Create a hexdump of the provided bytes.
+    /// </summary>
+    /// <param name="bytes">The bytes to hexdump.</param>
+    /// <param name="offset">The offset in the byte array to start at.</param>
+    /// <param name="bytesPerLine">The amount of bytes to display per line.</param>
+    /// <returns>The generated hexdump in string form.</returns>
+    public static string ByteArrayToHex(byte[] bytes, int offset = 0, int bytesPerLine = 16)
+    {
+        if (bytes == null) return string.Empty;
+
+        var hexChars = "0123456789ABCDEF".ToCharArray();
+
+        const int OFFSET_BLOCK = 8 + 3;
+        var byteBlock = OFFSET_BLOCK + (bytesPerLine * 3) + ((bytesPerLine - 1) / 8) + 2;
+        var lineLength = byteBlock + bytesPerLine + Environment.NewLine.Length;
+
+        var line = (new string(' ', lineLength - Environment.NewLine.Length) + Environment.NewLine).ToCharArray();
+        var numLines = (bytes.Length + bytesPerLine - 1) / bytesPerLine;
+
+        var sb = new StringBuilder(numLines * lineLength);
+
+        for (var i = 0; i < bytes.Length; i += bytesPerLine)
+        {
+            var h = i + offset;
+
+            line[0] = hexChars[(h >> 28) & 0xF];
+            line[1] = hexChars[(h >> 24) & 0xF];
+            line[2] = hexChars[(h >> 20) & 0xF];
+            line[3] = hexChars[(h >> 16) & 0xF];
+            line[4] = hexChars[(h >> 12) & 0xF];
+            line[5] = hexChars[(h >> 8) & 0xF];
+            line[6] = hexChars[(h >> 4) & 0xF];
+            line[7] = hexChars[(h >> 0) & 0xF];
+
+            var hexColumn = OFFSET_BLOCK;
+            var charColumn = byteBlock;
+
+            for (var j = 0; j < bytesPerLine; j++)
+            {
+                if (j > 0 && (j & 7) == 0) hexColumn++;
+
+                if (i + j >= bytes.Length)
+                {
+                    line[hexColumn] = ' ';
+                    line[hexColumn + 1] = ' ';
+                    line[charColumn] = ' ';
+                }
+                else
+                {
+                    var by = bytes[i + j];
+                    line[hexColumn] = hexChars[(by >> 4) & 0xF];
+                    line[hexColumn + 1] = hexChars[by & 0xF];
+                    line[charColumn] = by < 32 ? '.' : (char)by;
+                }
+
+                hexColumn += 3;
+                charColumn++;
+            }
+
+            sb.Append(line);
+        }
+
+        return sb.ToString().TrimEnd(Environment.NewLine.ToCharArray());
+    }
+}
+using System;
+using System.Diagnostics;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+
+namespace XIVLauncher.Common.Util;
+
+public static class GameHelpers
+{
+    /// <summary>
+    ///     Returns <see langword="true"/> if the current system region is set to North America.
+    /// </summary>
+    public static bool IsRegionNorthAmerica()
+    {
+        return RegionInfo.CurrentRegion.TwoLetterISORegionName is "US" or "MX" or "CA";
+    }
+
+    public static bool IsValidGamePath(string path)
+    {
+        if (string.IsNullOrEmpty(path))
+            return false;
+
+        return Directory.Exists(Path.Combine(path, "game")) && Directory.Exists(Path.Combine(path, "boot"));
+    }
+
+    public static bool CanMightNotBeInternationalClient(string path) 
+    {
+        if (Directory.Exists(Path.Combine(path, "sdo")))
+            return true;
+
+        if (File.Exists(Path.Combine(path, "boot", "FFXIV_Boot.exe")))
+            return true;
+
+        return false;
+    }
+
+    public static bool LetChoosePath(string path)
+    {
+        if (string.IsNullOrEmpty(path))
+            return true;
+
+        var di = new DirectoryInfo(path);
+
+        if (di.Name == "game")
+            return false;
+
+        if (di.Name == "boot")
+            return false;
+
+        if (di.Name == "sqpack")
+            return false;
+
+        return true;
+    }
+
+    public static FileInfo GetOfficialLauncherPath(DirectoryInfo gamePath) => new(Path.Combine(gamePath.FullName, "boot", "ffxivboot.exe"));
+
+    public static void StartOfficialLauncher(DirectoryInfo gamePath, bool isSteam, bool isFreeTrial)
+    {
+        var args = string.Empty;
+
+        if (isSteam && isFreeTrial)
+        {
+            args = "-issteamfreetrial";
+        }
+        else if (isSteam)
+        {
+            args = "-issteam";
+        }
+
+        Process.Start(GetOfficialLauncherPath(gamePath).FullName, args);
+    }
+
+    public static bool CheckIsGameOpen()
+    {
+#if DEBUG
+        return false;
+#endif
+
+        var procs = Process.GetProcesses();
+
+        if (procs.Any(x => x.ProcessName == "ffxiv"))
+            return true;
+
+        if (procs.Any(x => x.ProcessName == "ffxiv_dx11"))
+            return true;
+
+        if (procs.Any(x => x.ProcessName == "ffxivboot"))
+            return true;
+
+        if (procs.Any(x => x.ProcessName == "ffxivlauncher"))
+            return true;
+
+        return false;
+    }
+
+    public static string ToMangledSeBase64(byte[] input)
+    {
+        return Convert.ToBase64String(input)
+                      .Replace('+', '-')
+                      .Replace('/', '_')
+                      .Replace('=', '*');
+    }
+}
+using System;
+using System.Diagnostics;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+
+namespace XIVLauncher.Common.Util;
+
+public static class GameHelpers
+{
+    /// <summary>
+    ///     Returns <see langword="true"/> if the current system region is set to North America.
+    /// </summary>
+    public static bool IsRegionNorthAmerica()
+    {
+        return RegionInfo.CurrentRegion.TwoLetterISORegionName is "US" or "MX" or "CA";
+    }
+
+    public static bool IsValidGamePath(string path)
+    {
+        if (string.IsNullOrEmpty(path))
+            return false;
+
+        return Directory.Exists(Path.Combine(path, "game")) && Directory.Exists(Path.Combine(path, "boot"));
+    }
+
+    public static bool CanMightNotBeInternationalClient(string path) 
+    {
+        if (Directory.Exists(Path.Combine(path, "sdo")))
+            return true;
+
+        if (File.Exists(Path.Combine(path, "boot", "FFXIV_Boot.exe")))
+            return true;
+
+        return false;
+    }
+
+    public static bool LetChoosePath(string path)
+    {
+        if (string.IsNullOrEmpty(path))
+            return true;
+
+        var di = new DirectoryInfo(path);
+
+        if (di.Name == "game")
+            return false;
+
+        if (di.Name == "boot")
+            return false;
+
+        if (di.Name == "sqpack")
+            return false;
+
+        return true;
+    }
+
+    public static FileInfo GetOfficialLauncherPath(DirectoryInfo gamePath) => new(Path.Combine(gamePath.FullName, "boot", "ffxivboot.exe"));
+
+    public static void StartOfficialLauncher(DirectoryInfo gamePath, bool isSteam, bool isFreeTrial)
+    {
+        var args = string.Empty;
+
+        if (isSteam && isFreeTrial)
+        {
+            args = "-issteamfreetrial";
+        }
+        else if (isSteam)
+        {
+            args = "-issteam";
+        }
+
+        Process.Start(GetOfficialLauncherPath(gamePath).FullName, args);
+    }
+
+    public static bool CheckIsGameOpen()
+    {
+#if DEBUG
+        return false;
+#endif
+
+        var procs = Process.GetProcesses();
+
+        if (procs.Any(x => x.ProcessName == "ffxiv"))
+            return true;
+
+        if (procs.Any(x => x.ProcessName == "ffxiv_dx11"))
+            return true;
+
+        if (procs.Any(x => x.ProcessName == "ffxivboot"))
+            return true;
+
+        if (procs.Any(x => x.ProcessName == "ffxivlauncher"))
+            return true;
+
+        return false;
+    }
+
+    public static string ToMangledSeBase64(byte[] input)
+    {
+        return Convert.ToBase64String(input)
+                      .Replace('+', '-')
+                      .Replace('/', '_')
+                      .Replace('=', '*');
+    }
+}
+using System;
+using System.Diagnostics;
+using System.IO;
+using System.Net;
+using System.Net.Sockets;
+using System.Runtime.InteropServices;
+using System.Security.Principal;
+
+namespace LibDalamud.Common.Util;
+
+public static class PlatformHelpers
+{
+    public enum Platform
+    {
+        Win32,
+        Win32OnLinux,
+        Mac,
+    }
+    public static Platform GetPlatform()
+    {
+        
+
+        // TODO(goat): Add mac here, once it's merged
+
+        return Platform.Win32;
+    }
+
+    /// <summary>
+    ///     Generates a temporary file name.
+    /// </summary>
+    /// <returns>A temporary file name that is almost guaranteed to be unique.</returns>
+    public static string GetTempFileName()
+    {
+        // https://stackoverflow.com/a/50413126
+        return Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+    }
+
+    public static void OpenBrowser(string url)
+    {
+        // https://github.com/dotnet/corefx/issues/10361
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            url = url.Replace("&", "^&");
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            Process.Start("xdg-open", url);
+        }
+        else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            Process.Start("open", url);
+        }
+        else
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    [DllImport("libc")]
+    private static extern uint geteuid();
+
+    public static bool IsElevated()
+    {
+        switch (Environment.OSVersion.Platform)
+        {
+            case PlatformID.Win32NT:
+                return new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator);
+
+            case PlatformID.Unix:
+                return geteuid() == 0;
+
+            default:
+                return false;
+        }
+    }
+
+    public static void Untar(string path, string output)
+    {
+        var psi = new ProcessStartInfo("tar")
+        {
+            Arguments = $"-xf \"{path}\" -C \"{output}\""
+        };
+
+        var tarProcess = Process.Start(psi);
+
+        if (tarProcess == null)
+            throw new Exception("Could not start tar.");
+
+        tarProcess.WaitForExit();
+
+        if (tarProcess.ExitCode != 0)
+            throw new Exception("Could not untar.");
+    }
+
+    private static readonly IPEndPoint DefaultLoopbackEndpoint = new(IPAddress.Loopback, port: 0);
+
+    public static int GetAvailablePort()
+    {
+        using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+
+        socket.Bind(DefaultLoopbackEndpoint);
+        return ((IPEndPoint)socket.LocalEndPoint).Port;
+    }
+
+#if WIN32
+    /*
+     * WINE: The APIs DriveInfo uses are buggy on Wine. Let's just use the kernel32 API instead.
+     */
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true, CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    public static extern bool GetDiskFreeSpaceEx(string lpDirectoryName,
+                                                 out ulong lpFreeBytesAvailable,
+                                                 out ulong lpTotalNumberOfBytes,
+                                                 out ulong lpTotalNumberOfFreeBytes);
+
+    public static long GetDiskFreeSpace(DirectoryInfo info)
+    {
+        if (info == null)
+        {
+            throw new ArgumentNullException(nameof(info));
+        }
+
+        ulong dummy = 0;
+
+        if (!GetDiskFreeSpaceEx(info.Root.FullName, out ulong freeSpace, out dummy, out dummy))
+        {
+            throw new System.ComponentModel.Win32Exception(System.Runtime.InteropServices.Marshal.GetLastWin32Error());
+        }
+
+        return (long)freeSpace;
+    }
+#else
+        public static long GetDiskFreeSpace(DirectoryInfo info)
+        {
+            if (info == null)
+            {
+                throw new ArgumentNullException(nameof(info));
+            }
+
+            DriveInfo drive = new DriveInfo(info.FullName);
+
+            return drive.AvailableFreeSpace;
+        }
+#endif
+}
+using System;
+
+namespace XIVLauncher.Common.PlatformAbstractions;
+
+public interface IDalamudCompatibilityCheck
+{
+    public void EnsureCompatibility();
+
+    public class ArchitectureNotSupportedException : Exception
+    {
+        public ArchitectureNotSupportedException(string message)
+            : base(message)
+        {
+        }
+    }
+
+    public class NoRedistsException : Exception
+    {
+    }
+}﻿using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using LibDalamud.Common.Dalamud;
+
+namespace XIVLauncher.Common.PlatformAbstractions;
+
+public interface IDalamudRunner
+{
+    Process? Run(FileInfo runner, bool fakeLogin, bool noPlugins, bool noThirdPlugins, FileInfo gameExe, string gameArgs, IDictionary<string, string> environment, DalamudLoadMethod loadMethod, DalamudStartInfo startInfo);
+}namespace XIVLauncher.Common.PlatformAbstractions;
+
+public interface IDalamudLoadingOverlay
+{
+    public enum DalamudUpdateStep
+    {
+        Dalamud,
+        Assets,
+        Runtime,
+        Unavailable,
+        Starting,
+    }
+
+    public void SetStep(DalamudUpdateStep step);
+
+    public void SetVisible();
+
+    public void SetInvisible();
+
+    public void ReportProgress(long? size, long downloaded, double? progress);
+}using LibDalamud;
+using System.IO;
+using XIVLauncher.Common.Game.Patch.Acquisition;
+
+namespace XIVLauncher.Common.PlatformAbstractions;
+
+public interface ISettings
+{
+    string AcceptLanguage { get; }
+    ClientLanguage? ClientLanguage { get; }
+    bool? KeepPatches { get; }
+    DirectoryInfo PatchPath { get; }
+    DirectoryInfo GamePath { get; }
+    AcquisitionMethod? PatchAcquisitionMethod { get; }
+    long SpeedLimitBytes { get; }
+    int DalamudInjectionDelayMs { get; }
+}using System;
+using System.Threading.Tasks;
+
+namespace XIVLauncher.Common.PlatformAbstractions;
+
+public interface ISteam
+{
+    void Initialize(uint appId);
+    bool IsValid { get; }
+    bool BLoggedOn { get; }
+    bool BOverlayNeedsPresent { get; }
+    void Shutdown();
+    Task<byte[]?> GetAuthSessionTicketAsync();
+    bool IsAppInstalled(uint appId);
+    string GetAppInstallDir(uint appId);
+    bool ShowGamepadTextInput(bool password, bool multiline, string description, int maxChars, string existingText = "");
+    string GetEnteredGamepadText();
+    bool ShowFloatingGamepadTextInput(EFloatingGamepadTextInputMode mode, int x, int y, int width, int height);
+    bool IsRunningOnSteamDeck();
+    uint GetServerRealTime();
+    public void ActivateGameOverlayToWebPage(string url, bool modal = false);
+
+    enum EFloatingGamepadTextInputMode
+    {
+        EnterDismisses,
+        UserDismisses,
+        Email,
+        Numeric,
+    }
+
+    event Action<bool> OnGamepadTextInputDismissed;
+}namespace XIVLauncher.Common.PlatformAbstractions;
+
+public interface IUniqueIdCache
+{
+    bool HasValidCache(string name);
+
+    void Add(string name, string uid, int region, int maxExpansion);
+
+    bool TryGet(string userName, out CachedUid cached);
+
+    void Reset();
+
+    public struct CachedUid
+    {
+        public string UniqueId;
+        public int Region;
+        public int MaxExpansion;
+    }
+}
+
+#nullable enable
+
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Net.Http;
+
+#if NET6_0_OR_GREATER && !WIN32
+using System.Net.Security;
+#endif
+
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+using Newtonsoft.Json;
+using Serilog;
+using XIVLauncher.Common.Game.Patch.PatchList;
+using XIVLauncher.Common.Encryption;
+using XIVLauncher.Common.Game.Exceptions;
+using XIVLauncher.Common.PlatformAbstractions;
+using XIVLauncher.Common.Util;
+using LibDalamud;
+
+namespace XIVLauncher.Common.Game;
+
+public class Launcher
+{
+
+    private readonly ISteam? steam;
+    private readonly byte[]? steamTicket;
+    private readonly IUniqueIdCache uniqueIdCache;
+    private readonly ISettings settings;
+    private readonly HttpClient client;
+
+    public Launcher(ISteam? steam, IUniqueIdCache uniqueIdCache, ISettings settings)
+    {
+        this.steam = steam;
+        this.uniqueIdCache = uniqueIdCache;
+        this.settings = settings;
+
+        ServicePointManager.Expect100Continue = false;
+
+#if NET6_0_OR_GREATER && !WIN32
+        var sslOptions = new SslClientAuthenticationOptions()
+        {
+            CipherSuitesPolicy = new CipherSuitesPolicy(new[] { TlsCipherSuite.TLS_DHE_RSA_WITH_AES_256_GCM_SHA384 })
+        };
+
+        var handler = new SocketsHttpHandler
+        {
+            UseCookies = false,
+            SslOptions = sslOptions,
+        };
+#else
+        var handler = new HttpClientHandler
+        {
+            UseCookies = false,
+        };
+#endif
+
+        this.client = new HttpClient(handler);
+    }
+
+    public Launcher(byte[] steamTicket, IUniqueIdCache uniqueIdCache, ISettings settings) : this(steam: null, uniqueIdCache, settings)
+    {
+        this.steamTicket = steamTicket;
+    }
+
+    // The user agent for frontier pages. {0} has to be replaced by a unique computer id and its checksum
+    private const string USER_AGENT_TEMPLATE = "SQEXAuthor/2.0.0(Windows 6.2; ja-jp; {0})";
+    private readonly string _userAgent = GenerateUserAgent();
+
+    private static readonly string[] FilesToHash =
+    {
+        "ffxivboot.exe",
+        "ffxivboot64.exe",
+        "ffxivlauncher.exe",
+        "ffxivlauncher64.exe",
+        "ffxivupdater.exe",
+        "ffxivupdater64.exe"
+    };
+
+    public enum LoginState
+    {
+        Unknown,
+        Ok,
+        NeedsPatchGame,
+        NeedsPatchBoot,
+        NoService,
+        NoTerms
+    }
+
+    public class LoginResult
+    {
+        public LoginState State { get; set; }
+        public PatchListEntry[] PendingPatches { get; set; }
+        public OauthLoginResult OauthLogin { get; set; }
+        public string UniqueId { get; set; }
+    }
+
+    public async Task<LoginResult> Login(string userName, string password, string otp, bool isSteam, bool useCache, DirectoryInfo gamePath, bool forceBaseVersion, bool isFreeTrial)
+    {
+        string uid;
+        PatchListEntry[] pendingPatches = null;
+
+        OauthLoginResult oauthLoginResult;
+
+        LoginState loginState;
+
+        Log.Information("XivGame::Login(steamServiceAccount:{IsSteam}, cache:{UseCache})", isSteam, useCache);
+
+        Ticket? steamTicket = null;
+
+        if (isSteam)
+        {
+            if (this.steamTicket != null)
+            {
+                steamTicket = Ticket.EncryptAuthSessionTicket(this.steamTicket, (uint) DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+                Log.Information("Using predefined steam ticket");
+            }
+            else
+            {
+                Debug.Assert(this.steam != null);
+
+                try
+                {
+                    if (!this.steam.IsValid)
+                    {
+                        this.steam.Initialize(isFreeTrial ? Constants.STEAM_FT_APP_ID : Constants.STEAM_APP_ID);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "Could not initialize Steam");
+                    throw new SteamException("SteamAPI_Init() failed.", ex);
+                }
+
+                if (!this.steam.IsValid)
+                {
+                    throw new SteamException("Steam did not initialize successfully. Please restart Steam and try again.");
+                }
+
+                if (!this.steam.BLoggedOn)
+                {
+                    throw new SteamException("Not logged into Steam, or Steam is running in offline mode. Please log in and try again.");
+                }
+
+                try
+                {
+                    steamTicket = await Ticket.Get(steam).ConfigureAwait(true);
+                }
+                catch (Exception ex)
+                {
+                    throw new SteamException("Could not request auth ticket.", ex);
+                }
+            }
+
+            if (steamTicket == null)
+            {
+                throw new SteamException("Steam auth ticket was null.");
+            }
+        }
+
+        if (!useCache || !this.uniqueIdCache.TryGet(userName, out var cached))
+        {
+            oauthLoginResult = await OauthLogin(userName, password, otp, isFreeTrial, isSteam, 3, steamTicket);
+
+            Log.Information($"OAuth login successful - playable:{oauthLoginResult.Playable} terms:{oauthLoginResult.TermsAccepted} region:{oauthLoginResult.Region} expack:{oauthLoginResult.MaxExpansion}");
+
+            if (!oauthLoginResult.Playable)
+            {
+                return new LoginResult
+                {
+                    State = LoginState.NoService
+                };
+            }
+
+            if (!oauthLoginResult.TermsAccepted)
+            {
+                return new LoginResult
+                {
+                    State = LoginState.NoTerms
+                };
+            }
+
+            (uid, loginState, pendingPatches) = await RegisterSession(oauthLoginResult, gamePath, forceBaseVersion);
+
+            if (useCache)
+                this.uniqueIdCache.Add(userName, uid, oauthLoginResult.Region, oauthLoginResult.MaxExpansion);
+        }
+        else
+        {
+            Log.Information("Cached UID found, using instead");
+            uid = cached.UniqueId;
+            loginState = LoginState.Ok;
+
+            oauthLoginResult = new OauthLoginResult
+            {
+                Playable = true,
+                Region = cached.Region,
+                TermsAccepted = true,
+                MaxExpansion = cached.MaxExpansion
+            };
+        }
+
+        return new LoginResult
+        {
+            PendingPatches = pendingPatches,
+            OauthLogin = oauthLoginResult,
+            State = loginState,
+            UniqueId = uid
+        };
+    }
+
+    public Process? LaunchGame(IGameRunner runner, string sessionId, int region, int expansionLevel,
+                               bool isSteamServiceAccount, string additionalArguments,
+                               DirectoryInfo gamePath, bool isDx11, ClientLanguage language,
+                               bool encryptArguments, DpiAwareness dpiAwareness)
+    {
+        Log.Information(
+            $"XivGame::LaunchGame(steamServiceAccount:{isSteamServiceAccount}, args:{additionalArguments})");
+
+        var exePath = Path.Combine(gamePath.FullName, "game", "ffxiv_dx11.exe");
+        if (!isDx11)
+            exePath = Path.Combine(gamePath.FullName, "game", "ffxiv.exe");
+
+        var environment = new Dictionary<string, string>();
+
+        var argumentBuilder = new ArgumentBuilder()
+                              .Append("DEV.DataPathType", "1")
+                              .Append("DEV.MaxEntitledExpansionID", expansionLevel.ToString())
+                              .Append("DEV.TestSID", sessionId)
+                              .Append("DEV.UseSqPack", "1")
+                              .Append("SYS.Region", region.ToString())
+                              .Append("language", ((int)language).ToString())
+                              .Append("resetConfig", "0")
+                              .Append("ver", Repository.Ffxiv.GetVer(gamePath));
+
+        if (isSteamServiceAccount)
+        {
+            // These environment variable and arguments seems to be set when ffxivboot is started with "-issteam" (27.08.2019)
+            environment.Add("IS_FFXIV_LAUNCH_FROM_STEAM", "1");
+            argumentBuilder.Append("IsSteam", "1");
+        }
+
+        // This is a bit of a hack; ideally additionalArguments would be a dictionary or some KeyValue structure
+        if (!string.IsNullOrEmpty(additionalArguments))
+        {
+            var regex = new Regex(@"\s*(?<key>[^\s=]+)\s*=\s*(?<value>([^=]*$|[^=]*\s(?=[^\s=]+)))\s*", RegexOptions.Compiled);
+            foreach (Match match in regex.Matches(additionalArguments))
+                argumentBuilder.Append(match.Groups["key"].Value, match.Groups["value"].Value.Trim());
+        }
+
+        if (!File.Exists(exePath))
+            throw new BinaryNotPresentException(exePath);
+
+        var workingDir = Path.Combine(gamePath.FullName, "game");
+
+        var arguments = encryptArguments
+            ? argumentBuilder.BuildEncrypted()
+            : argumentBuilder.Build();
+
+        return runner.Start(exePath, workingDir, arguments, environment, dpiAwareness);
+    }
+
+    private static string GetVersionReport(DirectoryInfo gamePath, int exLevel, bool forceBaseVersion)
+    {
+        var verReport = $"{GetBootVersionHash(gamePath)}";
+
+        if (exLevel >= 1)
+            verReport += $"\nex1\t{(forceBaseVersion ? Constants.BASE_GAME_VERSION : Repository.Ex1.GetVer(gamePath))}";
+
+        if (exLevel >= 2)
+            verReport += $"\nex2\t{(forceBaseVersion ? Constants.BASE_GAME_VERSION : Repository.Ex2.GetVer(gamePath))}";
+
+        if (exLevel >= 3)
+            verReport += $"\nex3\t{(forceBaseVersion ? Constants.BASE_GAME_VERSION : Repository.Ex3.GetVer(gamePath))}";
+
+        if (exLevel >= 4)
+            verReport += $"\nex4\t{(forceBaseVersion ? Constants.BASE_GAME_VERSION : Repository.Ex4.GetVer(gamePath))}";
+
+        return verReport;
+    }
+
+    /// <summary>
+    /// Check ver & bck files for sanity.
+    /// </summary>
+    /// <param name="gamePath"></param>
+    /// <param name="exLevel"></param>
+    private static void EnsureVersionSanity(DirectoryInfo gamePath, int exLevel)
+    {
+        var failed = IsBadVersionSanity(gamePath, Repository.Ffxiv);
+        failed |= IsBadVersionSanity(gamePath, Repository.Ffxiv, true);
+
+        if (exLevel >= 1)
+        {
+            failed |= IsBadVersionSanity(gamePath, Repository.Ex1);
+            failed |= IsBadVersionSanity(gamePath, Repository.Ex1, true);
+        }
+
+        if (exLevel >= 2)
+        {
+            failed |= IsBadVersionSanity(gamePath, Repository.Ex2);
+            failed |= IsBadVersionSanity(gamePath, Repository.Ex2, true);
+        }
+
+        if (exLevel >= 3)
+        {
+            failed |= IsBadVersionSanity(gamePath, Repository.Ex3);
+            failed |= IsBadVersionSanity(gamePath, Repository.Ex3, true);
+        }
+
+        if (exLevel >= 4)
+        {
+            failed |= IsBadVersionSanity(gamePath, Repository.Ex4);
+            failed |= IsBadVersionSanity(gamePath, Repository.Ex4, true);
+        }
+
+        if (failed)
+            throw new InvalidVersionFilesException();
+    }
+
+    private static bool IsBadVersionSanity(DirectoryInfo gamePath, Repository repo, bool isBck = false)
+    {
+        var text = repo.GetVer(gamePath, isBck);
+
+        var nullOrWhitespace = string.IsNullOrWhiteSpace(text);
+        var containsNewline = text.Contains("\n");
+        var allNullBytes = Encoding.UTF8.GetBytes(text).All(x => x == 0x00);
+
+        if (nullOrWhitespace || containsNewline || allNullBytes)
+        {
+            Log.Error("Sanity check failed for {repo}/{isBck}: {NullOrWhitespace}, {ContainsNewline}, {AllNullBytes}", repo, isBck, nullOrWhitespace, containsNewline, allNullBytes);
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Calculate the hash that is sent to patch-gamever for version verification/tamper protection.
+    /// This same hash is also sent in lobby, but for ffxiv.exe and ffxiv_dx11.exe.
+    /// </summary>
+    /// <returns>String of hashed EXE files.</returns>
+    private static string GetBootVersionHash(DirectoryInfo gamePath)
+    {
+        var result = Repository.Boot.GetVer(gamePath) + "=";
+
+        for (var i = 0; i < FilesToHash.Length; i++)
+        {
+            result +=
+                $"{FilesToHash[i]}/{GetFileHash(Path.Combine(gamePath.FullName, "boot", FilesToHash[i]))}";
+
+            if (i != FilesToHash.Length - 1)
+                result += ",";
+        }
+
+        return result;
+    }
+
+    public async Task<PatchListEntry[]> CheckBootVersion(DirectoryInfo gamePath)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get,
+            $"http://patch-bootver.ffxiv.com/http/win32/ffxivneo_release_boot/{Repository.Boot.GetVer(gamePath)}/?time=" +
+            GetLauncherFormattedTimeLongRounded());
+
+        request.Headers.AddWithoutValidation("User-Agent", Constants.PatcherUserAgent);
+        request.Headers.AddWithoutValidation("Host", "patch-bootver.ffxiv.com");
+
+        var resp = await this.client.SendAsync(request);
+        var text = await resp.Content.ReadAsStringAsync();
+
+        if (text == string.Empty)
+            return null;
+
+        Log.Verbose("Boot patching is needed... List:\n{PatchList}", resp);
+
+        try
+        {
+            return PatchListParser.Parse(text);
+        }
+        catch (PatchListParseException ex)
+        {
+            Log.Information("Patch list:\n{PatchList}", ex.List);
+            throw;
+        }
+    }
+
+    private async Task<(string Uid, LoginState result, PatchListEntry[] PendingGamePatches)> RegisterSession(OauthLoginResult loginResult, DirectoryInfo gamePath, bool forceBaseVersion)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post,
+            $"https://patch-gamever.ffxiv.com/http/win32/ffxivneo_release_game/{(forceBaseVersion ? Constants.BASE_GAME_VERSION : Repository.Ffxiv.GetVer(gamePath))}/{loginResult.SessionId}");
+
+        request.Headers.AddWithoutValidation("X-Hash-Check", "enabled");
+        request.Headers.AddWithoutValidation("User-Agent", Constants.PatcherUserAgent);
+
+        if (!forceBaseVersion)
+            EnsureVersionSanity(gamePath, loginResult.MaxExpansion);
+        request.Content = new StringContent(GetVersionReport(gamePath, loginResult.MaxExpansion, forceBaseVersion));
+
+        var resp = await this.client.SendAsync(request);
+        var text = await resp.Content.ReadAsStringAsync();
+
+        // Conflict indicates that boot needs to update, we do not get a patch list or a unique ID to download patches with in this case
+        if (resp.StatusCode == HttpStatusCode.Conflict)
+            return (null, LoginState.NeedsPatchBoot, null);
+
+        if (resp.StatusCode == HttpStatusCode.Gone)
+            throw new InvalidResponseException("The server indicated that the version requested is no longer being serviced or not present.", text);
+
+        if (!resp.Headers.TryGetValues("X-Patch-Unique-Id", out var uidVals))
+            throw new InvalidResponseException($"Could not get X-Patch-Unique-Id. ({resp.StatusCode})", text);
+
+        var uid = uidVals.First();
+
+        if (string.IsNullOrEmpty(text))
+            return (uid, LoginState.Ok, null);
+
+        Log.Verbose("Game Patching is needed... List:\n{PatchList}", text);
+
+        var pendingPatches = PatchListParser.Parse(text);
+        return (uid, LoginState.NeedsPatchGame, pendingPatches);
+    }
+
+    public async Task<string> GenPatchToken(string patchUrl, string uniqueId)
+    {
+        // Yes, Square does use HTTP for this and sends tokens in headers. IT'S NOT MY FAULT.
+        var request = new HttpRequestMessage(HttpMethod.Post, "http://patch-gamever.ffxiv.com/gen_token");
+
+        request.Headers.AddWithoutValidation("Connection", "Keep-Alive");
+        request.Headers.AddWithoutValidation("X-Patch-Unique-Id", uniqueId);
+        request.Headers.AddWithoutValidation("User-Agent", Constants.PatcherUserAgent);
+
+        request.Content = new StringContent(patchUrl);
+
+        var resp = await this.client.SendAsync(request);
+        resp.EnsureSuccessStatusCode();
+
+        return await resp.Content.ReadAsStringAsync();
+    }
+
+    private async Task<(string Stored, string? SteamLinkedId)> GetOauthTop(string url, bool isSteam)
+    {
+        // This is needed to be able to access the login site correctly
+        var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.AddWithoutValidation("Accept", "image/gif, image/jpeg, image/pjpeg, application/x-ms-application, application/xaml+xml, application/x-ms-xbap, */*");
+        request.Headers.AddWithoutValidation("Referer", GenerateFrontierReferer(this.settings.ClientLanguage.GetValueOrDefault(ClientLanguage.English)));
+        request.Headers.AddWithoutValidation("Accept-Encoding", "gzip, deflate");
+        request.Headers.AddWithoutValidation("Accept-Language", this.settings.AcceptLanguage);
+        request.Headers.AddWithoutValidation("User-Agent", _userAgent);
+        request.Headers.AddWithoutValidation("Connection", "Keep-Alive");
+        request.Headers.AddWithoutValidation("Cookie", "_rsid=\"\"");
+
+        var reply = await this.client.SendAsync(request);
+
+        var text = await reply.Content.ReadAsStringAsync();
+
+        if (text.Contains("window.external.user(\"restartup\");"))
+        {
+            if (isSteam)
+                throw new SteamLinkNeededException();
+
+            throw new InvalidResponseException("restartup, but not isSteam?", text);
+        }
+
+        var storedRegex = new Regex(@"\t<\s*input .* name=""_STORED_"" value=""(?<stored>.*)"">");
+        var matches = storedRegex.Matches(text);
+
+        if (matches.Count == 0)
+        {
+            Log.Error(text);
+            throw new InvalidResponseException("Could not get STORED.", text);
+        }
+
+        string? steamUsername = null;
+
+        if (isSteam)
+        {
+            var steamRegex = new Regex(@"<input name=""sqexid"" type=""hidden"" value=""(?<sqexid>.*)""\/>");
+            var steamMatches = steamRegex.Matches(text);
+
+            if (steamMatches.Count == 0)
+            {
+                Log.Error(text);
+                throw new InvalidResponseException("Could not get steam username.", text);
+            }
+
+            steamUsername = steamMatches[0].Groups["sqexid"].Value;
+        }
+
+        return (matches[0].Groups["stored"].Value, steamUsername);
+    }
+
+    public class OauthLoginResult
+    {
+        public string SessionId { get; set; }
+        public int Region { get; set; }
+        public bool TermsAccepted { get; set; }
+        public bool Playable { get; set; }
+        public int MaxExpansion { get; set; }
+    }
+
+    private static string GetOauthTopUrl(int region, bool isFreeTrial, bool isSteam, Ticket steamTicket)
+    {
+        var url =
+            $"https://ffxiv-login.square-enix.com/oauth/ffxivarr/login/top?lng=en&rgn={region}&isft={(isFreeTrial ? "1" : "0")}&cssmode=1&isnew=1&launchver=3";
+
+        if (isSteam)
+        {
+            url += "&issteam=1";
+
+            url += $"&session_ticket={steamTicket.Text}";
+            url += $"&ticket_size={steamTicket.Length}";
+        }
+
+        return url;
+    }
+
+    private async Task<OauthLoginResult> OauthLogin(string userName, string password, string otp, bool isFreeTrial, bool isSteam, int region, Ticket? steamTicket)
+    {
+        if (isSteam && steamTicket == null)
+            throw new ArgumentNullException(nameof(steamTicket), "isSteam, but steamTicket == null");
+
+        var topUrl = GetOauthTopUrl(region, isFreeTrial, isSteam, steamTicket);
+        var topResult = await GetOauthTop(topUrl, isSteam);
+
+        var request = new HttpRequestMessage(HttpMethod.Post,
+            "https://ffxiv-login.square-enix.com/oauth/ffxivarr/login/login.send");
+
+        request.Headers.AddWithoutValidation("Accept", "image/gif, image/jpeg, image/pjpeg, application/x-ms-application, application/xaml+xml, application/x-ms-xbap, */*");
+        request.Headers.AddWithoutValidation("Referer", topUrl);
+        request.Headers.AddWithoutValidation("Accept-Language", this.settings.AcceptLanguage);
+        request.Headers.AddWithoutValidation("User-Agent", _userAgent);
+        //request.Headers.AddWithoutValidation("Content-Type", "application/x-www-form-urlencoded");
+        request.Headers.AddWithoutValidation("Accept-Encoding", "gzip, deflate");
+        request.Headers.AddWithoutValidation("Host", "ffxiv-login.square-enix.com");
+        request.Headers.AddWithoutValidation("Connection", "Keep-Alive");
+        request.Headers.AddWithoutValidation("Cache-Control", "no-cache");
+        request.Headers.AddWithoutValidation("Cookie", "_rsid=\"\"");
+
+        if (isSteam)
+        {
+            if (!String.Equals(userName, topResult.SteamLinkedId, StringComparison.OrdinalIgnoreCase))
+                throw new SteamWrongAccountException(userName, topResult.SteamLinkedId);
+
+            userName = topResult.SteamLinkedId;
+        }
+
+        request.Content = new FormUrlEncodedContent(
+            new Dictionary<string, string>()
+            {
+                { "_STORED_", topResult.Stored },
+                { "sqexid", userName },
+                { "password", password },
+                { "otppw", otp },
+                // { "saveid", "1" } // NOTE(goat): This adds a Set-Cookie with a filled-out _rsid value in the login response.
+            });
+
+        var response = await this.client.SendAsync(request);
+
+        var reply = await response.Content.ReadAsStringAsync();
+
+        var regex = new Regex(@"window.external.user\(""login=auth,ok,(?<launchParams>.*)\);");
+        var matches = regex.Matches(reply);
+
+        if (matches.Count == 0)
+            throw new OauthLoginException(reply);
+
+        var launchParams = matches[0].Groups["launchParams"].Value.Split(',');
+
+        return new OauthLoginResult
+        {
+            SessionId = launchParams[1],
+            Region = int.Parse(launchParams[5]),
+            TermsAccepted = launchParams[3] != "0",
+            Playable = launchParams[9] != "0",
+            MaxExpansion = int.Parse(launchParams[13])
+        };
+    }
+
+    private static string GetFileHash(string file)
+    {
+        var bytes = File.ReadAllBytes(file);
+
+        var hash = SHA1.Create().ComputeHash(bytes);
+        var hashstring = string.Join("", hash.Select(b => b.ToString("x2")).ToArray());
+
+        var length = new FileInfo(file).Length;
+
+        return length + "/" + hashstring;
+    }
+
+    public async Task<GateStatus> GetGateStatus(ClientLanguage language)
+    {
+        try
+        {
+            var reply = Encoding.UTF8.GetString(
+                await DownloadAsLauncher(
+                    $"https://frontier.ffxiv.com/worldStatus/gate_status.json?lang={language.GetLangCode()}&_={ApiHelpers.GetUnixMillis()}", language).ConfigureAwait(true));
+
+            return JsonConvert.DeserializeObject<GateStatus>(reply);
+        }
+        catch (Exception exc)
+        {
+            throw new Exception("Could not get gate status", exc);
+        }
+    }
+
+    public async Task<bool> GetLoginStatus()
+    {
+        try
+        {
+            var reply = Encoding.UTF8.GetString(
+                await DownloadAsLauncher(
+                    $"https://frontier.ffxiv.com/worldStatus/login_status.json?_={ApiHelpers.GetUnixMillis()}", ClientLanguage.English).ConfigureAwait(true));
+
+            return Convert.ToBoolean(int.Parse(reply[10].ToString()));
+        }
+        catch (Exception exc)
+        {
+            throw new Exception("Could not get gate status", exc);
+        }
+    }
+
+    private static string MakeComputerId()
+    {
+        var hashString = Environment.MachineName + Environment.UserName + Environment.OSVersion +
+                         Environment.ProcessorCount;
+
+        using var sha1 = HashAlgorithm.Create("SHA1");
+
+        var bytes = new byte[5];
+
+        Array.Copy(sha1.ComputeHash(Encoding.Unicode.GetBytes(hashString)), 0, bytes, 1, 4);
+
+        var checkSum = (byte) -(bytes[1] + bytes[2] + bytes[3] + bytes[4]);
+        bytes[0] = checkSum;
+
+        return BitConverter.ToString(bytes).Replace("-", "").ToLower();
+    }
+
+    public async Task<byte[]> DownloadAsLauncher(string url, ClientLanguage language, string contentType = "")
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, url);
+
+        request.Headers.AddWithoutValidation("User-Agent", _userAgent);
+
+        if (!string.IsNullOrEmpty(contentType))
+        {
+            request.Headers.AddWithoutValidation("Accept", contentType);
+        }
+
+        request.Headers.AddWithoutValidation("Accept-Encoding", "gzip, deflate");
+        request.Headers.AddWithoutValidation("Accept-Language", this.settings.AcceptLanguage);
+
+        request.Headers.AddWithoutValidation("Origin", "https://launcher.finalfantasyxiv.com");
+
+        request.Headers.AddWithoutValidation("Referer", GenerateFrontierReferer(language));
+
+        var resp = await this.client.SendAsync(request);
+        return await resp.Content.ReadAsByteArrayAsync();
+    }
+
+    private static string GenerateFrontierReferer(ClientLanguage language)
+    {
+        var langCode = language.GetLangCode().Replace("-", "_");
+        var formattedTime = GetLauncherFormattedTimeLong();
+
+        return $"https://launcher.finalfantasyxiv.com/v620/index.html?rc_lang={langCode}&time={formattedTime}";
+    }
+
+    // Used to be used for frontier top, they now use the un-rounded long timestamp
+    private static string GetLauncherFormattedTime() => DateTime.UtcNow.ToString("yyyy-MM-dd-HH");
+
+    private static string GetLauncherFormattedTimeLong() => DateTime.UtcNow.ToString("yyyy-MM-dd-HH-mm");
+
+    private static string GetLauncherFormattedTimeLongRounded()
+    {
+        var formatted = DateTime.UtcNow.ToString("yyyy-MM-dd-HH-mm", new CultureInfo("en-US")).ToCharArray();
+        formatted[15] = '0';
+
+        return new string(formatted);
+    }
+
+    private static string GenerateUserAgent()
+    {
+        return string.Format(USER_AGENT_TEMPLATE, MakeComputerId());
+    }
+}
+
+#nullable restore
