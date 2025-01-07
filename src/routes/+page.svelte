@@ -11,6 +11,8 @@
   import { onMount } from 'svelte';
   import { goto } from "$app/navigation";
   import { listen } from '@tauri-apps/api/event';
+  import { logStore, type LogEntry } from '$lib/stores/log-store';
+
   let logOutput: string[] = [];
   async function handleThemeToggle(event: MouseEvent) {
     const target = event.currentTarget as HTMLElement;
@@ -51,12 +53,20 @@
     logOutput = [...logOutput, `[${timestamp}] ${message}`];
   }
 
+  function formatDisplayLog(entry: LogEntry): string {
+    const icon = entry.type === 'error' ? '❌' :
+                 entry.type === 'success' ? '✅' :
+                 entry.type === 'start' ? '📝' : 'ℹ️';
+    return `[${entry.timestamp}] ${icon} ${entry.message}`;
+  }
+
   function handleNext() {
+    logStore.addLog("Navigating to login page");
     goto("/login", { replaceState: true, invalidateAll: true });
   }
 
   onMount(() => {
-    addLog("Application started");
+    logStore.addLog("Application started");
 
     let unlistenTauri: (() => void) | undefined;
 
@@ -68,11 +78,11 @@
     });
 
     const errorHandler = (event: ErrorEvent) => {
-      addLog(`Error: ${event.message}`);
+      logStore.addLog(`Error: ${event.message}`);
     };
 
     const rejectionHandler = (event: PromiseRejectionEvent) => {
-      addLog(`Unhandled Promise Rejection: ${event.reason}`);
+      logStore.addLog(`Unhandled Promise Rejection: ${event.reason}`);
     };
 
     window.addEventListener('error', errorHandler);
@@ -190,14 +200,18 @@
                     </Accordion.Trigger>
                     <Accordion.Content class="px-4 py-2">
                       <div class="space-y-2 max-h-[200px] overflow-y-auto">
-                        {#if logOutput.length === 0}
+                        {#if $logStore.length === 0}
                           <div class="text-sm text-muted-foreground italic text-center py-2">
                             No logs available
                           </div>
                         {:else}
-                          {#each logOutput as log}
-                            <div class="text-sm font-mono bg-muted/30 p-2 rounded border border-muted-foreground/20">
-                              {log}
+                          {#each $logStore as log}
+                            <div class="text-sm font-mono p-2 rounded border border-muted-foreground/20
+                                        {log.type === 'error' ? 'bg-red-500/10 border-red-500/20' : 
+                                         log.type === 'success' ? 'bg-green-500/10 border-green-500/20' :
+                                         log.type === 'start' ? 'bg-blue-500/10 border-blue-500/20' :
+                                         'bg-muted/30'}">
+                              {formatDisplayLog(log)}
                             </div>
                           {/each}
                         {/if}
@@ -205,7 +219,7 @@
                           <Button 
                             variant="outline" 
                             size="sm"
-                            on:click={() => logOutput = []}
+                            on:click={() => logStore.clear()}
                           >
                             Clear Logs
                           </Button>

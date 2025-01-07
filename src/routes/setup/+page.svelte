@@ -7,12 +7,15 @@
     import { Switch } from "$lib/components/ui/switch";
     import { goto } from "$app/navigation";
     import { invoke } from "@tauri-apps/api/core";
+    import { appLocalDataDir } from "@tauri-apps/api/path";
     import { gameConfig } from '$lib/stores/game-config';
+    import { logStore, type LogEntry } from '$lib/stores/log-store';
   
     let gamePath = $gameConfig.gamePath;
     let isSteam = $gameConfig.isSteam;
     let statusString = "Ready to launch";
-    let logOutput: string[] = [];
+    let autoScroll = true;
+    let logContainer: HTMLElement;
 
     // Add Dalamud configuration
     let dalamudEnabled = false;
@@ -24,60 +27,82 @@
     let dalamudDevPluginPath = "";
     let dalamudAssetPath = "";
 
+    // Initialize default paths when enabling Dalamud
+    async function initializeDalamudPaths() {
+        try {
+            const localAppData = await appLocalDataDir();
+            // Remove the trailing slash and add XIVLauncher directory
+            const xivlauncherDir = `${localAppData.slice(0, -1)}\\XIVLauncher`;
+            dalamudPath = xivlauncherDir;
+            logStore.addLog(`Set Dalamud path to: ${xivlauncherDir}`);
+        } catch (error) {
+            logStore.addLog(`Failed to get AppData path: ${error}`);
+        }
+    }
+
+    function formatDisplayLog(entry: LogEntry): string {
+        const icon = entry.type === 'error' ? '❌' :
+                     entry.type === 'success' ? '✅' :
+                     entry.type === 'start' ? '📝' : 'ℹ️';
+        return `[${entry.timestamp}] ${icon} ${entry.message}`;
+    }
+
+    
+
     async function handleLaunch() {
-      try {
-        statusString = "Launching game...";
-        $gameConfig.gamePath = gamePath;
-        $gameConfig.isSteam = isSteam;
-        
-        // Clear previous log output when starting a new launch
-        logOutput = [];
-        
-        const result = await invoke('launch_game', { 
-          config: {
-            game_path: $gameConfig.gamePath,
-            username: $gameConfig.username,
-            password: $gameConfig.password,
-            otp: $gameConfig.otp,
-            language: $gameConfig.language,
-            dx11: $gameConfig.dx11,
-            expansion_level: $gameConfig.expansionLevel,
-            is_steam: $gameConfig.isSteam,
-            region: $gameConfig.region,
-            // Add Dalamud configuration
-            dalamud_enabled: dalamudEnabled,
-            dalamud_path: dalamudPath || null,
-            dalamud_inject_delay: dalamudInjectDelay,
-            dalamud_configuration_path: dalamudConfigPath || null,
-            dalamud_plugin_path: dalamudPluginPath || null,
-            dalamud_dev_plugin_path: dalamudDevPluginPath || null,
-            dalamud_asset_path: dalamudAssetPath || null
-          }
-        }) as string;
-        
-        // Split the result into individual lines and add each to the log
-        const lines = result.split('\n');
-        for (const line of lines) {
-          if (line.trim()) {
-            logOutput = [...logOutput, `${new Date().toISOString()}: ${line.trim()}`];
-          }
+        try {
+            statusString = "Launching game...";
+            $gameConfig.gamePath = gamePath;
+            $gameConfig.isSteam = isSteam;
+            
+            logStore.addLog("Starting game launch process...");
+            
+            const config = {
+                game_path: $gameConfig.gamePath,
+                username: $gameConfig.username,
+                password: $gameConfig.password,
+                otp: $gameConfig.otp || "",
+                language: $gameConfig.language,
+                dx11: $gameConfig.dx11,
+                expansion_level: $gameConfig.expansionLevel,
+                is_steam: $gameConfig.isSteam,
+                region: $gameConfig.region,
+                enable_dalamud: dalamudEnabled,
+                dalamud_path: dalamudPath || "",
+                injection_delay: dalamudInjectDelay,
+                additional_launch_args: "",
+                dpi_awareness: "Aware"
+            };
+
+            logStore.addLog("Sending launch command with configuration");
+            const result = await invoke('launch_game', { config }) as string;
+            
+            // Split the result into individual lines and add each to the log
+            const lines = result.split('\n');
+            for (const line of lines) {
+                if (line.trim()) {
+                    logStore.addLog(line.trim());
+                }
+            }
+            
+            statusString = "Game launched successfully";
+            logStore.addLog("Launch process completed successfully");
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            // For errors, also split into lines as they may contain multiple log entries
+            const errorLines = errorMessage.split('\n');
+            for (const line of errorLines) {
+                if (line.trim()) {
+                    logStore.addLog(`ERROR: ${line.trim()}`);
+                }
+            }
+            statusString = `Launch failed: ${errorMessage}`;
         }
-        
-        statusString = "Game launched successfully";
-      } catch (error: unknown) {
-        // For errors, also split into lines as they may contain multiple log entries
-        const errorLines = (error as Error).toString().split('\n');
-        for (const line of errorLines) {
-          if (line.trim()) {
-            logOutput = [...logOutput, `${new Date().toISOString()}: ERROR - ${line.trim()}`];
-          }
-        }
-        statusString = `Launch failed: ${error}`;
-      }
     }
   
     function handleBack() {
-      goto("/login");
+        logStore.addLog("Navigating back to login page");
+        goto("/login");
     }
   </script>
   
@@ -137,7 +162,12 @@
                   <Switch 
                     id="dalamud"
                     checked={dalamudEnabled}
-                    onCheckedChange={(checked) => dalamudEnabled = checked}
+                    onCheckedChange={async (checked) => {
+                        dalamudEnabled = checked;
+                        if (checked) {
+                            await initializeDalamudPaths();
+                        }
+                    }}
                   />
                 </div>
   
@@ -178,6 +208,7 @@
                             id="configPath" 
                             bind:value={dalamudConfigPath} 
                             placeholder="Custom configuration path"
+                            disabled={!showAdvancedDalamud}
                           />
                         </div>
   
@@ -187,6 +218,7 @@
                             id="pluginPath" 
                             bind:value={dalamudPluginPath} 
                             placeholder="Custom plugin path"
+                            disabled={!showAdvancedDalamud}
                           />
                         </div>
   
@@ -196,6 +228,7 @@
                             id="devPluginPath" 
                             bind:value={dalamudDevPluginPath} 
                             placeholder="Custom dev plugin path"
+                            disabled={!showAdvancedDalamud}
                           />
                         </div>
   
@@ -205,6 +238,7 @@
                             id="assetPath" 
                             bind:value={dalamudAssetPath} 
                             placeholder="Custom asset path"
+                            disabled={!showAdvancedDalamud}
                           />
                         </div>
                       </div>
@@ -217,30 +251,50 @@
               <Accordion.Root class="w-full">
                 <Accordion.Item value="launch-log">
                   <Accordion.Trigger class="flex w-full items-center justify-between px-4 py-2 text-sm font-medium hover:bg-muted/50 transition-colors">
-                    Launch Log ({logOutput.length} entries)
+                    Launch Log ({$logStore.length} entries)
+                    <div class="flex items-center gap-2">
+                        <label class="flex items-center gap-1 text-xs">
+                            <input type="checkbox" bind:checked={autoScroll} class="h-3 w-3">
+                            Auto-scroll
+                        </label>
+                    </div>
                   </Accordion.Trigger>
                   <Accordion.Content class="px-4 py-2">
-                    <div class="space-y-2 max-h-[200px] overflow-y-auto">
-                      {#if logOutput.length === 0}
-                        <div class="text-sm text-muted-foreground italic text-center py-2">
-                          No logs available
-                        </div>
-                      {:else}
-                        {#each logOutput as log}
-                          <div class="text-sm font-mono bg-muted/30 p-2 rounded border border-muted-foreground/20">
-                            {log}
-                          </div>
-                        {/each}
-                      {/if}
+                    <div bind:this={logContainer} 
+                         class="space-y-1 max-h-[300px] overflow-y-auto font-mono text-sm">
+                        {#if $logStore.length === 0}
+                            <div class="text-sm text-muted-foreground italic text-center py-2">
+                                No logs available
+                            </div>
+                        {:else}
+                            {#each $logStore as log}
+                                <div class="py-1 px-2 rounded border border-muted-foreground/20 
+                                          {log.type === 'error' ? 'bg-red-500/10 border-red-500/20' : 
+                                           log.type === 'success' ? 'bg-green-500/10 border-green-500/20' :
+                                           log.type === 'start' ? 'bg-blue-500/10 border-blue-500/20' :
+                                           'bg-muted/30'}">
+                                    {formatDisplayLog(log)}
+                                </div>
+                            {/each}
+                        {/if}
                     </div>
-                    <div class="mt-4 flex justify-end">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        on:click={() => logOutput = []}
-                      >
-                        Clear Logs
-                      </Button>
+                    <div class="mt-4 flex justify-end gap-2">
+                        <Button 
+                            variant="outline" 
+                            size="sm"
+                            on:click={() => logStore.clear()}>
+                            Clear Logs
+                        </Button>
+                        <Button 
+                            variant="outline" 
+                            size="sm"
+                            on:click={() => {
+                                if (logContainer) {
+                                    logContainer.scrollTop = logContainer.scrollHeight;
+                                }
+                            }}>
+                            Scroll to Bottom
+                        </Button>
                     </div>
                   </Accordion.Content>
                 </Accordion.Item>

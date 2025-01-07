@@ -1,6 +1,6 @@
 [package]
 name = "rust-xivloader"
-version = "0.1.0"
+version = "0.5.0"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
@@ -84,4 +84,6 @@ windows = { version = "0.58", features = [
 windows-core = "0.58"
 windows-sys = "0.59"
 walkdir = "2.4"
+tauri-plugin-log = "2"
+log = "0.4"
 
