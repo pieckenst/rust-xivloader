@@ -313,6 +313,7 @@ async fn setup_dalamud(config: &LaunchConfig) -> Result<String, String> {
         "installedPlugins",
         "pluginConfigs",
         "devPlugins",
+        "config",
     ];
 
     for dir in directories {
@@ -322,6 +323,12 @@ async fn setup_dalamud(config: &LaunchConfig) -> Result<String, String> {
         info!("Created directory: {}", path);
     }
 
+    // Ensure Dalamud.Injector.exe exists
+    let injector_path = format!("{}/addon/Dalamud.Injector.exe", base_path);
+    if !Path::new(&injector_path).exists() {
+        return Err(format!("Dalamud injector not found at {}", injector_path));
+    }
+
     let elapsed = start_time.elapsed();
     info!("Dalamud setup completed in {:.2?}", elapsed);
     Ok(format!("Dalamud setup completed in {:.2?}", elapsed))
@@ -329,6 +336,12 @@ async fn setup_dalamud(config: &LaunchConfig) -> Result<String, String> {
 
 #[cfg(windows)]
 async fn inject_dalamud(config: &LaunchConfig, pid: u32) -> Result<String, String> {
+    // Wait for the configured injection delay
+    if config.injection_delay > 0 {
+        info!("Waiting {}ms before injecting Dalamud", config.injection_delay);
+        tokio::time::sleep(tokio::time::Duration::from_millis(config.injection_delay)).await;
+    }
+
     let start_info = DalamudStartInfo {
         working_directory: config.dalamud_path.clone(),
         configuration_path: format!("{}/config", config.dalamud_path),
@@ -336,32 +349,99 @@ async fn inject_dalamud(config: &LaunchConfig, pid: u32) -> Result<String, Strin
         asset_directory: format!("{}/dalamudAssets", config.dalamud_path),
         client_language: config.language,
         delay_initialize: false,
-        troubleshooting_pack: None,
+        game_version: get_game_version(&config.game_path)?,
+        logging_path: format!("{}/logs", config.dalamud_path),
+        troubleshooting_pack: Some("{}".to_string()), // Empty troubleshooting data
+        delay_initialize_ms: config.injection_delay as i32,
     };
 
     let start_info_json = serde_json::to_string(&start_info)
         .map_err(|e| format!("Failed to serialize start info: {}", e))?;
+    
+    // Base64 encode the start info
+    let start_info_b64 = base64::encode(start_info_json.as_bytes());
 
-    info!("Dalamud start info: {}", start_info_json);
+    info!("Dalamud start info (base64): {}", start_info_b64);
 
     let injector_path = format!("{}/addon/Dalamud.Injector.exe", config.dalamud_path);
-    let output = Command::new(injector_path)
-        .args(&[
-            "--pid",
-            &pid.to_string(),
-            "--dalamud-start-info",
-            &start_info_json,
-        ])
+    
+    // Verify injector exists
+    if !Path::new(&injector_path).exists() {
+        return Err(format!("Dalamud injector not found at {}", injector_path));
+    }
+
+    let game_path = if config.dx11 {
+        format!("{}/game/ffxiv_dx11.exe", config.game_path)
+    } else {
+        format!("{}/game/ffxiv.exe", config.game_path)
+    };
+
+    // Build arguments according to DalamudInjectorArgs
+    let game_arg = format!("--game=\"{}\"", game_path);
+    let working_dir_arg = format!("--dalamud-working-directory=\"{}\"", config.dalamud_path);
+    let config_path_arg = format!("--dalamud-configuration-path=\"{}/config\"", config.dalamud_path);
+    let plugin_dir_arg = format!("--dalamud-plugin-directory=\"{}/installedPlugins\"", config.dalamud_path);
+    let asset_dir_arg = format!("--dalamud-asset-directory=\"{}/dalamudAssets\"", config.dalamud_path);
+    let log_path_arg = format!("--logpath=\"{}/logs\"", config.dalamud_path);
+    let lang_arg = format!("--dalamud-client-language={}", config.language);
+    let delay_arg = format!("--dalamud-delay-initialize={}", config.injection_delay);
+    let tspack_arg = format!("--dalamud-tspack-b64={}", start_info_b64);
+
+    let args = vec![
+        "launch",
+        "--mode=entrypoint",  // Changed to entrypoint injection
+        &game_arg,
+        &working_dir_arg,
+        &config_path_arg,
+        &plugin_dir_arg,
+        &asset_dir_arg,
+        &log_path_arg,
+        &lang_arg,
+        &delay_arg,
+        &tspack_arg,
+    ];
+
+    // Set up the command with proper working directory and environment
+    let mut command = Command::new(&injector_path);
+    command
+        .current_dir(&config.dalamud_path)
+        .args(&args)
+        .stdout(Stdio::piped())  // Capture stdout for process handle
+        .stderr(Stdio::piped()); // Capture stderr for error messages
+
+    // Add DALAMUD_RUNTIME environment variable if needed
+    let runtime_path = format!("{}/runtime", config.dalamud_path);
+    if Path::new(&runtime_path).exists() {
+        command.env("DALAMUD_RUNTIME", &runtime_path);
+        command.env("__COMPAT_LAYER", "RunAsInvoker HighDPIAware");
+    }
+
+    info!("Running Dalamud injector: {:?}", command);
+    
+    let output = command
         .output()
         .map_err(|e| format!("Failed to run injector: {}", e))?;
 
     if !output.status.success() {
         let error = String::from_utf8_lossy(&output.stderr);
+        let output = String::from_utf8_lossy(&output.stdout);
+        error!("Injector failed with error: {}", error);
+        error!("Injector output: {}", output);
         return Err(format!("Injector failed: {}", error));
     }
 
+    // Try to parse the injector output for process handle
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    info!("Dalamud injector stdout: {}", stdout);
+
     info!("Dalamud injection completed successfully");
     Ok("Dalamud injection completed successfully".to_string())
+}
+
+fn get_game_version(game_path: &str) -> Result<String, String> {
+    let ver_path = format!("{}/game/ffxivgame.ver", game_path);
+    fs::read_to_string(&ver_path)
+        .map_err(|e| format!("Failed to read game version: {}", e))
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -372,8 +452,11 @@ struct DalamudStartInfo {
     asset_directory: String,
     client_language: u32,
     delay_initialize: bool,
+    game_version: String,
+    logging_path: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     troubleshooting_pack: Option<String>,
+    delay_initialize_ms: i32,
 }
 
 impl Default for DalamudStartInfo {
@@ -385,7 +468,10 @@ impl Default for DalamudStartInfo {
             asset_directory: String::new(),
             client_language: 1,
             delay_initialize: false,
+            game_version: String::new(),
+            logging_path: String::new(),
             troubleshooting_pack: None,
+            delay_initialize_ms: 0,
         }
     }
 }
