@@ -193,14 +193,20 @@ fn create_suspended_game_process(game_path: &str, args: &str) -> Result<u32, Str
 
 #[tauri::command]
 pub async fn launch_game(config: LaunchConfig) -> Result<String, String> {
-    let start_time = Instant::now();
+    let total_start_time = Instant::now();
+    let mut metrics = Vec::new();
     info!("Starting game launch process with config: {:?}", config);
 
     // Set up Dalamud first if enabled
     if config.enable_dalamud {
         info!("Dalamud is enabled, starting Dalamud setup");
+        let dalamud_start = Instant::now();
         match setup_dalamud(&config).await {
-            Ok(_) => info!("Dalamud setup completed successfully"),
+            Ok(_) => {
+                let dalamud_duration = dalamud_start.elapsed();
+                metrics.push(format!("Dalamud setup: {:.2?}", dalamud_duration));
+                info!("Dalamud setup completed successfully in {:.2?}", dalamud_duration);
+            }
             Err(e) => {
                 error!("Dalamud setup failed: {}", e);
                 return Err(format!("Dalamud setup failed: {}", e));
@@ -209,6 +215,7 @@ pub async fn launch_game(config: LaunchConfig) -> Result<String, String> {
     }
 
     // Prepare game path
+    let path_start = Instant::now();
     let game_path = if config.dx11 {
         format!("{}/game/ffxiv_dx11.exe", config.game_path)
     } else {
@@ -221,13 +228,17 @@ pub async fn launch_game(config: LaunchConfig) -> Result<String, String> {
         error!("Game executable not found at {}", game_path);
         return Err(format!("Game executable not found at {}", game_path));
     }
+    metrics.push(format!("Path preparation: {:.2?}", path_start.elapsed()));
     info!("Game executable found");
 
     // Get a fresh session ID right before launching
     info!("Getting fresh session ID");
+    let sid_start = Instant::now();
     let sid = match get_session_id(&config).await {
         Ok(s) => {
-            info!("Successfully obtained fresh session ID");
+            let sid_duration = sid_start.elapsed();
+            metrics.push(format!("Session ID retrieval: {:.2?}", sid_duration));
+            info!("Successfully obtained fresh session ID in {:.2?}", sid_duration);
             s
         }
         Err(e) => {
@@ -237,6 +248,7 @@ pub async fn launch_game(config: LaunchConfig) -> Result<String, String> {
     };
 
     // Prepare launch arguments with fresh session ID
+    let args_start = Instant::now();
     let args = format!(
         "DEV.DataPathType=1 DEV.MaxEntitledExpansionID={} DEV.TestSID={} DEV.UseSqPack=1 SYS.Region={} language={}",
         config.expansion_level,
@@ -244,13 +256,19 @@ pub async fn launch_game(config: LaunchConfig) -> Result<String, String> {
         config.region,
         config.language
     );
+    metrics.push(format!("Arguments preparation: {:.2?}", args_start.elapsed()));
     info!("Launch arguments prepared: {}", args);
 
     // Launch the game with or without Dalamud
+    let launch_start = Instant::now();
     if config.enable_dalamud {
         info!("Starting game with Dalamud entrypoint injection");
         match inject_dalamud(&config, &sid).await {
-            Ok(_) => info!("Game launched with Dalamud successfully"),
+            Ok(_) => {
+                let launch_duration = launch_start.elapsed();
+                metrics.push(format!("Dalamud injection and launch: {:.2?}", launch_duration));
+                info!("Game launched with Dalamud successfully in {:.2?}", launch_duration);
+            }
             Err(e) => {
                 error!("Failed to launch game with Dalamud: {}", e);
                 return Err(format!("Failed to launch game with Dalamud: {}", e));
@@ -260,7 +278,9 @@ pub async fn launch_game(config: LaunchConfig) -> Result<String, String> {
         info!("Attempting to create game process without Dalamud");
         match create_suspended_game_process(&game_path, &args) {
             Ok(p) => {
-                info!("Game process created successfully with PID: {}", p);
+                let launch_duration = launch_start.elapsed();
+                metrics.push(format!("Game process creation: {:.2?}", launch_duration));
+                info!("Game process created successfully with PID: {} in {:.2?}", p, launch_duration);
             }
             Err(e) => {
                 error!("Failed to create game process: {}", e);
@@ -269,34 +289,49 @@ pub async fn launch_game(config: LaunchConfig) -> Result<String, String> {
         }
     }
 
-    let elapsed = start_time.elapsed();
-    info!("Game launch completed in {:.2?}", elapsed);
-    Ok(format!("Game launched successfully in {:.2?}", elapsed))
+    let total_elapsed = total_start_time.elapsed();
+    metrics.push(format!("Total launch time: {:.2?}", total_elapsed));
+    
+    // Join all metrics into a single string
+    let metrics_str = metrics.join("\n");
+    info!("Launch performance metrics:\n{}", metrics_str);
+    
+    Ok(format!("Game launched successfully. Performance metrics:\n{}", metrics_str))
 }
 
 async fn get_session_id(config: &LaunchConfig) -> Result<String, String> {
+    let start_time = Instant::now();
     info!("Starting session ID retrieval");
-    let client = Client::new();
+    
+    let client = Client::builder()
+        .timeout(Duration::from_secs(200))  // Add a 200 second timeout - 30 seconds would fail before square gives session id as their server for login are famously slow
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+    info!("HTTP client created in {:?}", start_time.elapsed());
 
+    let stored_start = Instant::now();
     info!("Getting stored value");
     let stored = match get_stored(config.is_steam).await {
         Ok(s) => {
-            info!("Successfully retrieved stored value");
+            info!("Successfully retrieved stored value in {:?}", stored_start.elapsed());
             s
         }
         Err(e) => {
-            error!("Failed to get stored value: {}", e);
+            error!("Failed to get stored value after {:?}: {}", stored_start.elapsed(), e);
             return Err(e);
         }
     };
 
+    let form_start = Instant::now();
     let mut form = HashMap::new();
     form.insert("_STORED_", stored);
     form.insert("sqexid", config.username.clone());
     form.insert("password", config.password.clone());
     form.insert("otppw", config.otp.clone().unwrap_or_default());
+    info!("Form prepared in {:?}", form_start.elapsed());
 
-    info!("Sending login request");
+    let login_start = Instant::now();
+    info!("Sending login request to Square Enix");
     let response = match client.post("https://ffxiv-login.square-enix.com/oauth/ffxivarr/login/login.send")
         .header(USER_AGENT, get_user_agent())
         .header(REFERER, format!("https://ffxiv-login.square-enix.com/oauth/ffxivarr/login/top?lng=en&rgn=3&isft=0&issteam={}", 
@@ -306,63 +341,101 @@ async fn get_session_id(config: &LaunchConfig) -> Result<String, String> {
         .send()
         .await {
             Ok(r) => {
-                info!("Login request sent successfully");
+                info!("Login request sent successfully in {:?}", login_start.elapsed());
                 r
             }
             Err(e) => {
-                error!("Failed to send login request: {}", e);
+                error!("Failed to send login request after {:?}: {}", login_start.elapsed(), e);
                 return Err(format!("Failed to send login request: {}", e));
             }
         };
 
+    let body_start = Instant::now();
+    info!("Reading response body");
     let body = match response.text().await {
         Ok(b) => {
-            info!("Successfully received response body");
+            info!("Successfully received response body in {:?}", body_start.elapsed());
             b
         }
         Err(e) => {
-            error!("Failed to read response body: {}", e);
+            error!("Failed to read response body after {:?}: {}", body_start.elapsed(), e);
             return Err(format!("Failed to read response: {}", e));
         }
     };
 
+    let parse_start = Instant::now();
+    info!("Parsing response for session ID");
     let re = regex::Regex::new(r"sid,(?P<sid>.*),terms").unwrap();
-    match re.captures(&body) {
+    let result = match re.captures(&body) {
         Some(caps) => {
             let sid = caps["sid"].to_string();
-            info!("Successfully extracted session ID");
+            info!("Successfully extracted session ID in {:?}", parse_start.elapsed());
             Ok(sid)
         }
         None => {
-            error!("Failed to extract session ID from response");
+            error!("Failed to extract session ID after {:?}. Response body: {}", parse_start.elapsed(), body);
             Err("Failed to extract session ID".to_string())
         }
-    }
+    };
+
+    info!("Total session ID retrieval took {:?}", start_time.elapsed());
+    result
 }
 
 async fn get_stored(is_steam: bool) -> Result<String, String> {
-    let client = Client::new();
+    let start_time = Instant::now();
+    info!("Starting stored value retrieval");
+    
+    let client = Client::builder()
+        .timeout(Duration::from_secs(30))  // Add a 30 second timeout
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+
     let url = format!(
         "https://ffxiv-login.square-enix.com/oauth/ffxivarr/login/top?lng=en&rgn=3&isft=0&issteam={}", 
         if is_steam { "1" } else { "0" }
     );
+    info!("Requesting stored value from: {}", url);
 
-    let response = client
+    let response = match client
         .get(&url)
         .header(USER_AGENT, get_user_agent())
         .send()
-        .await
-        .map_err(|e| format!("Failed to get stored value: {}", e))?;
+        .await {
+            Ok(r) => {
+                info!("Received stored value response in {:?}", start_time.elapsed());
+                r
+            }
+            Err(e) => {
+                error!("Failed to get stored value after {:?}: {}", start_time.elapsed(), e);
+                return Err(format!("Failed to get stored value: {}", e));
+            }
+        };
 
-    let body = response
+    let body = match response
         .text()
-        .await
-        .map_err(|e| format!("Failed to read response: {}", e))?;
+        .await {
+            Ok(b) => {
+                info!("Received stored value body in {:?}", start_time.elapsed());
+                b
+            }
+            Err(e) => {
+                error!("Failed to read stored value response after {:?}: {}", start_time.elapsed(), e);
+                return Err(format!("Failed to read response: {}", e));
+            }
+        };
 
     let re = regex::Regex::new(r#"<input.*?name="_STORED_".*?value="([^"]*)"#).unwrap();
     match re.captures(&body) {
-        Some(caps) => Ok(caps.get(1).unwrap().as_str().to_string()),
-        None => Err("Could not find _STORED_ value".to_string()),
+        Some(caps) => {
+            let stored = caps.get(1).unwrap().as_str().to_string();
+            info!("Successfully extracted stored value in {:?}", start_time.elapsed());
+            Ok(stored)
+        }
+        None => {
+            error!("Could not find _STORED_ value in response after {:?}. Response body: {}", start_time.elapsed(), body);
+            Err("Could not find _STORED_ value".to_string())
+        }
     }
 }
 
@@ -776,26 +849,32 @@ fn check_dalamud_integrity(path: &str) -> Result<bool, String> {
 
 #[cfg(windows)]
 async fn inject_dalamud(config: &LaunchConfig, sid: &str) -> Result<String, String> {
+    // Get Dalamud version info first to construct correct paths
+    let client = Client::new();
+    let version_info = check_dalamud_version(&client, false).await?;
+    info!("Using Dalamud version: {}", version_info.assembly_version);
+
     // Normalize base path for injection
-    let base_path =
-        if config.dalamud_path.ends_with("/addon") || config.dalamud_path.ends_with("\\addon") {
-            config.dalamud_path.clone()
-        } else {
-            format!("{}/addon", config.dalamud_path)
-        };
+    let base_path = if config.dalamud_path.ends_with("/addon") || config.dalamud_path.ends_with("\\addon") {
+        config.dalamud_path.clone()
+    } else {
+        format!("{}/addon", config.dalamud_path)
+    };
     info!("Using Dalamud base path for injection: {}", base_path);
+
+    // Construct version-specific paths
+    let version_path = format!("{}/Hooks/{}", base_path, version_info.assembly_version);
+    let injector_path = format!("{}/Dalamud.Injector.exe", version_path);
+    info!("Using version-specific injector at: {}", injector_path);
 
     // Wait for the configured injection delay
     if config.injection_delay > 0 {
-        info!(
-            "Waiting {}ms before injecting Dalamud",
-            config.injection_delay
-        );
+        info!("Waiting {}ms before injecting Dalamud", config.injection_delay);
         tokio::time::sleep(tokio::time::Duration::from_millis(config.injection_delay)).await;
     }
 
     let start_info = DalamudStartInfo {
-        working_directory: base_path.clone(),
+        working_directory: version_path.clone(), // Use version-specific path
         configuration_path: format!("{}/config", config.dalamud_path),
         plugin_directory: format!("{}/installedPlugins", config.dalamud_path),
         asset_directory: format!("{}/dalamudAssets", config.dalamud_path),
@@ -813,7 +892,6 @@ async fn inject_dalamud(config: &LaunchConfig, sid: &str) -> Result<String, Stri
     let start_info_b64 = base64::encode(start_info_json.as_bytes());
     info!("Dalamud start info (base64): {}", start_info_b64);
 
-    let injector_path = format!("{}/Dalamud.Injector.exe", base_path);
     if !Path::new(&injector_path).exists() {
         error!("Dalamud injector not found at: {}", injector_path);
         return Err(format!(
@@ -821,7 +899,7 @@ async fn inject_dalamud(config: &LaunchConfig, sid: &str) -> Result<String, Stri
             injector_path
         ));
     }
-    info!("Using Dalamud injector at: {}", injector_path);
+    info!("Verified injector exists at: {}", injector_path);
 
     let game_path = if config.dx11 {
         format!("{}/game/ffxiv_dx11.exe", config.game_path)
@@ -831,19 +909,10 @@ async fn inject_dalamud(config: &LaunchConfig, sid: &str) -> Result<String, Stri
 
     // Prepare all argument strings
     let game_arg = format!("--game={}", game_path);
-    let working_dir_arg = format!("--dalamud-working-directory={}", base_path);
-    let config_path_arg = format!(
-        "--dalamud-configuration-path={}/config",
-        config.dalamud_path
-    );
-    let plugin_dir_arg = format!(
-        "--dalamud-plugin-directory={}/installedPlugins",
-        config.dalamud_path
-    );
-    let asset_dir_arg = format!(
-        "--dalamud-asset-directory={}/dalamudAssets",
-        config.dalamud_path
-    );
+    let working_dir_arg = format!("--dalamud-working-directory={}", version_path); // Use version-specific path
+    let config_path_arg = format!("--dalamud-configuration-path={}/config", config.dalamud_path);
+    let plugin_dir_arg = format!("--dalamud-plugin-directory={}/installedPlugins", config.dalamud_path);
+    let asset_dir_arg = format!("--dalamud-asset-directory={}/dalamudAssets", config.dalamud_path);
     let log_path_arg = format!("--logpath={}/logs", config.dalamud_path);
     let lang_arg = format!("--dalamud-client-language={}", config.language);
     let delay_arg = format!("--dalamud-delay-initialize={}", config.injection_delay);
@@ -878,7 +947,7 @@ async fn inject_dalamud(config: &LaunchConfig, sid: &str) -> Result<String, Stri
     // Set up the command with proper working directory and environment
     let mut command = Command::new(&injector_path);
     command
-        .current_dir(&base_path)
+        .current_dir(&version_path) // Use version-specific path
         .args(&args)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
