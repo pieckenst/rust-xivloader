@@ -6,6 +6,7 @@
   import { Label } from "$lib/components/ui/label";
   import { goto } from "$app/navigation";
   import { gameConfig } from '$lib/stores/game-config';
+  import { logStore, type LogEntry } from '$lib/stores/log-store';
   
   let username = '';
   let password = '';
@@ -17,6 +18,7 @@
 
     document.startViewTransition(() => {
       activeTab = value;
+      logStore.addLog(`Switched to ${value} tab`);
     });
   }
 
@@ -24,10 +26,12 @@
     $gameConfig.username = username;
     $gameConfig.password = password;
     $gameConfig.otp = otp;
+    logStore.addLog("Credentials saved, navigating to setup page");
     goto("/setup", { replaceState: true });
   }
 
   function handleBack() {
+    logStore.addLog("Navigating back to main page");
     goto("/", { replaceState: true });
   }
 </script>
