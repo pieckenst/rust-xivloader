@@ -14,6 +14,8 @@ use std::process::{Child, Command, Stdio};
 use std::ptr::{self, null_mut};
 use std::time::Duration;
 use std::time::Instant;
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use tracing::{debug, error, info, warn};
 
 #[cfg(windows)]
@@ -1016,4 +1018,135 @@ impl Default for DalamudStartInfo {
             delay_initialize_ms: 0,
         }
     }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Headlines {
+    pub news: Vec<News>,
+    pub topics: Vec<News>,
+    pub pinned: Vec<News>,
+}
+
+fn deserialize_string_or_number<'de, D>(deserializer: D) -> Result<Option<i32>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::de::Error;
+    
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum StringOrNumber {
+        String(String),
+        Number(i32),
+    }
+
+    match Option::<StringOrNumber>::deserialize(deserializer)? {
+        Some(StringOrNumber::String(s)) => {
+            if s.is_empty() || s == "0" {
+                Ok(Some(0))
+            } else {
+                s.parse().map(Some).map_err(D::Error::custom)
+            }
+        }
+        Some(StringOrNumber::Number(n)) => Ok(Some(n)),
+        None => Ok(None),
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Banner {
+    #[serde(rename = "lsb_banner")]
+    pub lsb_banner: String,
+    pub link: String,
+    #[serde(rename = "order_priority", deserialize_with = "deserialize_string_or_number")]
+    pub order_priority: Option<i32>,
+    #[serde(rename = "fix_order", deserialize_with = "deserialize_string_or_number")]
+    pub fix_order: Option<i32>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct News {
+    pub date: String,
+    pub title: String,
+    pub url: String,
+    pub id: String,
+    pub tag: Option<String>,
+}
+
+#[tauri::command]
+pub async fn get_news(language: u32, force_na: bool) -> Result<Headlines, String> {
+    let unix_timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis();
+    
+    let lang_code = match language {
+        1 => "en-us",
+        2 => "de-de", 
+        3 => "fr-fr",
+        _ => "en-us"
+    };
+
+    let url = format!(
+        "https://frontier.ffxiv.com/news/headline.json?lang={}&media=pcapp&_={}",
+        lang_code, unix_timestamp
+    );
+
+    let client = Client::new();
+    let resp = client
+        .get(&url)
+        .header("User-Agent", get_user_agent())
+        .send()
+        .await
+        .map_err(|e| format!("Failed to get news: {}", e))?;
+
+    let text = resp
+        .text()
+        .await
+        .map_err(|e| format!("Failed to get response text: {}", e))?;
+
+    serde_json::from_str(&text).map_err(|e| format!("Failed to parse news JSON: {}", e))
+}
+
+#[tauri::command]
+pub async fn get_banners(language: u32, force_na: bool) -> Result<Vec<Banner>, String> {
+    let unix_timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis();
+    
+    let lang_code = match language {
+        1 => "en-us",
+        2 => "de-de",
+        3 => "fr-fr", 
+        _ => "en-us"
+    };
+
+    let url = format!(
+        "https://frontier.ffxiv.com/v2/topics/{}/banner.json?lang={}&media=pcapp&_={}", 
+        lang_code, lang_code, unix_timestamp
+    );
+
+    let client = Client::new();
+    let resp = client
+        .get(&url)
+        .header("User-Agent", get_user_agent())
+        .send()
+        .await
+        .map_err(|e| format!("Failed to get banners: {}", e))?;
+
+    let text = resp
+        .text()
+        .await
+        .map_err(|e| format!("Failed to get response text: {}", e))?;
+
+    #[derive(Deserialize)]
+    struct BannerRoot {
+        banner: Vec<Banner>
+    }
+
+    let root: BannerRoot = serde_json::from_str(&text)
+        .map_err(|e| format!("Failed to parse banner JSON: {}", e))?;
+
+    Ok(root.banner)
 }

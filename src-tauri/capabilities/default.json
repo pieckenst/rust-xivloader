@@ -9,6 +9,10 @@
     "core:default",
     "opener:default",
     "log:default",
-    "log:default"
+    "core:app:default",
+    "core:resources:default",
+    "core:menu:default",
+    "core:tray:default",
+    "core:window:allow-set-title"
   ]
 }

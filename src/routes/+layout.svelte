@@ -10,8 +10,15 @@
 </script>
 
 <ModeWatcher defaultMode="dark" />
-<div class="relative flex min-h-screen flex-col">
+
+<div class="relative min-h-screen">
   <PageTransitions>
-      <slot />
+    <slot />
   </PageTransitions>
 </div>
+
+<style>
+  :global(body) {
+    @apply bg-background text-foreground antialiased;
+  }
+</style>
