@@ -207,7 +207,10 @@ pub async fn launch_game(config: LaunchConfig) -> Result<String, String> {
             Ok(_) => {
                 let dalamud_duration = dalamud_start.elapsed();
                 metrics.push(format!("Dalamud setup: {:.2?}", dalamud_duration));
-                info!("Dalamud setup completed successfully in {:.2?}", dalamud_duration);
+                info!(
+                    "Dalamud setup completed successfully in {:.2?}",
+                    dalamud_duration
+                );
             }
             Err(e) => {
                 error!("Dalamud setup failed: {}", e);
@@ -240,7 +243,10 @@ pub async fn launch_game(config: LaunchConfig) -> Result<String, String> {
         Ok(s) => {
             let sid_duration = sid_start.elapsed();
             metrics.push(format!("Session ID retrieval: {:.2?}", sid_duration));
-            info!("Successfully obtained fresh session ID in {:.2?}", sid_duration);
+            info!(
+                "Successfully obtained fresh session ID in {:.2?}",
+                sid_duration
+            );
             s
         }
         Err(e) => {
@@ -258,7 +264,10 @@ pub async fn launch_game(config: LaunchConfig) -> Result<String, String> {
         config.region,
         config.language
     );
-    metrics.push(format!("Arguments preparation: {:.2?}", args_start.elapsed()));
+    metrics.push(format!(
+        "Arguments preparation: {:.2?}",
+        args_start.elapsed()
+    ));
     info!("Launch arguments prepared: {}", args);
 
     // Launch the game with or without Dalamud
@@ -268,8 +277,14 @@ pub async fn launch_game(config: LaunchConfig) -> Result<String, String> {
         match inject_dalamud(&config, &sid).await {
             Ok(_) => {
                 let launch_duration = launch_start.elapsed();
-                metrics.push(format!("Dalamud injection and launch: {:.2?}", launch_duration));
-                info!("Game launched with Dalamud successfully in {:.2?}", launch_duration);
+                metrics.push(format!(
+                    "Dalamud injection and launch: {:.2?}",
+                    launch_duration
+                ));
+                info!(
+                    "Game launched with Dalamud successfully in {:.2?}",
+                    launch_duration
+                );
             }
             Err(e) => {
                 error!("Failed to launch game with Dalamud: {}", e);
@@ -282,7 +297,10 @@ pub async fn launch_game(config: LaunchConfig) -> Result<String, String> {
             Ok(p) => {
                 let launch_duration = launch_start.elapsed();
                 metrics.push(format!("Game process creation: {:.2?}", launch_duration));
-                info!("Game process created successfully with PID: {} in {:.2?}", p, launch_duration);
+                info!(
+                    "Game process created successfully with PID: {} in {:.2?}",
+                    p, launch_duration
+                );
             }
             Err(e) => {
                 error!("Failed to create game process: {}", e);
@@ -293,20 +311,23 @@ pub async fn launch_game(config: LaunchConfig) -> Result<String, String> {
 
     let total_elapsed = total_start_time.elapsed();
     metrics.push(format!("Total launch time: {:.2?}", total_elapsed));
-    
+
     // Join all metrics into a single string
     let metrics_str = metrics.join("\n");
     info!("Launch performance metrics:\n{}", metrics_str);
-    
-    Ok(format!("Game launched successfully. Performance metrics:\n{}", metrics_str))
+
+    Ok(format!(
+        "Game launched successfully. Performance metrics:\n{}",
+        metrics_str
+    ))
 }
 
 async fn get_session_id(config: &LaunchConfig) -> Result<String, String> {
     let start_time = Instant::now();
     info!("Starting session ID retrieval");
-    
+
     let client = Client::builder()
-        .timeout(Duration::from_secs(200))  // Add a 200 second timeout - 30 seconds would fail before square gives session id as their server for login are famously slow
+        .timeout(Duration::from_secs(200)) // Add a 200 second timeout - 30 seconds would fail before square gives session id as their server for login are famously slow
         .build()
         .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
     info!("HTTP client created in {:?}", start_time.elapsed());
@@ -315,11 +336,18 @@ async fn get_session_id(config: &LaunchConfig) -> Result<String, String> {
     info!("Getting stored value");
     let stored = match get_stored(config.is_steam).await {
         Ok(s) => {
-            info!("Successfully retrieved stored value in {:?}", stored_start.elapsed());
+            info!(
+                "Successfully retrieved stored value in {:?}",
+                stored_start.elapsed()
+            );
             s
         }
         Err(e) => {
-            error!("Failed to get stored value after {:?}: {}", stored_start.elapsed(), e);
+            error!(
+                "Failed to get stored value after {:?}: {}",
+                stored_start.elapsed(),
+                e
+            );
             return Err(e);
         }
     };
@@ -356,11 +384,18 @@ async fn get_session_id(config: &LaunchConfig) -> Result<String, String> {
     info!("Reading response body");
     let body = match response.text().await {
         Ok(b) => {
-            info!("Successfully received response body in {:?}", body_start.elapsed());
+            info!(
+                "Successfully received response body in {:?}",
+                body_start.elapsed()
+            );
             b
         }
         Err(e) => {
-            error!("Failed to read response body after {:?}: {}", body_start.elapsed(), e);
+            error!(
+                "Failed to read response body after {:?}: {}",
+                body_start.elapsed(),
+                e
+            );
             return Err(format!("Failed to read response: {}", e));
         }
     };
@@ -371,11 +406,18 @@ async fn get_session_id(config: &LaunchConfig) -> Result<String, String> {
     let result = match re.captures(&body) {
         Some(caps) => {
             let sid = caps["sid"].to_string();
-            info!("Successfully extracted session ID in {:?}", parse_start.elapsed());
+            info!(
+                "Successfully extracted session ID in {:?}",
+                parse_start.elapsed()
+            );
             Ok(sid)
         }
         None => {
-            error!("Failed to extract session ID after {:?}. Response body: {}", parse_start.elapsed(), body);
+            error!(
+                "Failed to extract session ID after {:?}. Response body: {}",
+                parse_start.elapsed(),
+                body
+            );
             Err("Failed to extract session ID".to_string())
         }
     };
@@ -387,9 +429,9 @@ async fn get_session_id(config: &LaunchConfig) -> Result<String, String> {
 async fn get_stored(is_steam: bool) -> Result<String, String> {
     let start_time = Instant::now();
     info!("Starting stored value retrieval");
-    
+
     let client = Client::builder()
-        .timeout(Duration::from_secs(30))  // Add a 30 second timeout
+        .timeout(Duration::from_secs(30)) // Add a 30 second timeout
         .build()
         .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
 
@@ -403,39 +445,56 @@ async fn get_stored(is_steam: bool) -> Result<String, String> {
         .get(&url)
         .header(USER_AGENT, get_user_agent())
         .send()
-        .await {
-            Ok(r) => {
-                info!("Received stored value response in {:?}", start_time.elapsed());
-                r
-            }
-            Err(e) => {
-                error!("Failed to get stored value after {:?}: {}", start_time.elapsed(), e);
-                return Err(format!("Failed to get stored value: {}", e));
-            }
-        };
+        .await
+    {
+        Ok(r) => {
+            info!(
+                "Received stored value response in {:?}",
+                start_time.elapsed()
+            );
+            r
+        }
+        Err(e) => {
+            error!(
+                "Failed to get stored value after {:?}: {}",
+                start_time.elapsed(),
+                e
+            );
+            return Err(format!("Failed to get stored value: {}", e));
+        }
+    };
 
-    let body = match response
-        .text()
-        .await {
-            Ok(b) => {
-                info!("Received stored value body in {:?}", start_time.elapsed());
-                b
-            }
-            Err(e) => {
-                error!("Failed to read stored value response after {:?}: {}", start_time.elapsed(), e);
-                return Err(format!("Failed to read response: {}", e));
-            }
-        };
+    let body = match response.text().await {
+        Ok(b) => {
+            info!("Received stored value body in {:?}", start_time.elapsed());
+            b
+        }
+        Err(e) => {
+            error!(
+                "Failed to read stored value response after {:?}: {}",
+                start_time.elapsed(),
+                e
+            );
+            return Err(format!("Failed to read response: {}", e));
+        }
+    };
 
     let re = regex::Regex::new(r#"<input.*?name="_STORED_".*?value="([^"]*)"#).unwrap();
     match re.captures(&body) {
         Some(caps) => {
             let stored = caps.get(1).unwrap().as_str().to_string();
-            info!("Successfully extracted stored value in {:?}", start_time.elapsed());
+            info!(
+                "Successfully extracted stored value in {:?}",
+                start_time.elapsed()
+            );
             Ok(stored)
         }
         None => {
-            error!("Could not find _STORED_ value in response after {:?}. Response body: {}", start_time.elapsed(), body);
+            error!(
+                "Could not find _STORED_ value in response after {:?}. Response body: {}",
+                start_time.elapsed(),
+                body
+            );
             Err("Could not find _STORED_ value".to_string())
         }
     }
@@ -565,14 +624,18 @@ async fn setup_dalamud(config: &LaunchConfig) -> Result<String, String> {
     let start_time = Instant::now();
 
     // Normalize base path - ensure we don't have duplicate /addon
-    let base_path = if config.dalamud_path.ends_with("/addon") || config.dalamud_path.ends_with("\\addon") {
-        info!("Base path already ends with addon, using as is: {}", config.dalamud_path);
-        config.dalamud_path.clone()
-    } else {
-        let path = format!("{}/addon", config.dalamud_path);
-        info!("Adding /addon to base path: {}", path);
-        path
-    };
+    let base_path =
+        if config.dalamud_path.ends_with("/addon") || config.dalamud_path.ends_with("\\addon") {
+            info!(
+                "Base path already ends with addon, using as is: {}",
+                config.dalamud_path
+            );
+            config.dalamud_path.clone()
+        } else {
+            let path = format!("{}/addon", config.dalamud_path);
+            info!("Adding /addon to base path: {}", path);
+            path
+        };
 
     // Fast version check first
     let client = Client::new();
@@ -592,7 +655,10 @@ async fn setup_dalamud(config: &LaunchConfig) -> Result<String, String> {
     // Fast asset version check
     let asset_info = check_asset_version(&client).await?;
     let asset_ver_path = format!("{}/dalamudAssets/asset.ver", config.dalamud_path);
-    let current_asset_ver = fs::read_to_string(&asset_ver_path).unwrap_or_else(|_| "0".to_string()).parse::<i32>().unwrap_or(0);
+    let current_asset_ver = fs::read_to_string(&asset_ver_path)
+        .unwrap_or_else(|_| "0".to_string())
+        .parse::<i32>()
+        .unwrap_or(0);
     let needs_asset_update = current_asset_ver < asset_info.version;
 
     // Create required directories only if we need to update something
@@ -600,7 +666,7 @@ async fn setup_dalamud(config: &LaunchConfig) -> Result<String, String> {
         // Create base directories
         fs::create_dir_all(&base_path)
             .map_err(|e| format!("Failed to create Dalamud base directory: {}", e))?;
-        
+
         // Required directories relative to XIVLOADER root (not addon)
         let root_directories = [
             "dalamudAssets",
@@ -633,8 +699,11 @@ async fn setup_dalamud(config: &LaunchConfig) -> Result<String, String> {
 
     // Update Dalamud if needed
     if needs_dalamud_update {
-        info!("Updating Dalamud to version {}", version_info.assembly_version);
-        
+        info!(
+            "Updating Dalamud to version {}",
+            version_info.assembly_version
+        );
+
         // Create Hooks directory
         let hooks_dir = format!("{}/Hooks", base_path);
         fs::create_dir_all(&hooks_dir)
@@ -643,20 +712,22 @@ async fn setup_dalamud(config: &LaunchConfig) -> Result<String, String> {
         // Download and extract Dalamud
         let temp_path = format!("{}/dalamud_temp.zip", config.dalamud_path);
         download_file(&client, &version_info.download_url, &temp_path).await?;
-        
+
         // Create version directory
         fs::create_dir_all(&current_version_path)
             .map_err(|e| format!("Failed to create version directory: {}", e))?;
-            
+
         // Extract to version directory
         extract_zip(&temp_path, &current_version_path)?;
         fs::remove_file(&temp_path).map_err(|e| format!("Failed to remove temp file: {}", e))?;
-        
+
         // Write version info
         fs::write(
             format!("{}/version.json", current_version_path),
-            serde_json::to_string(&version_info).map_err(|e| format!("Failed to serialize version info: {}", e))?,
-        ).map_err(|e| format!("Failed to write version info: {}", e))?;
+            serde_json::to_string(&version_info)
+                .map_err(|e| format!("Failed to serialize version info: {}", e))?,
+        )
+        .map_err(|e| format!("Failed to write version info: {}", e))?;
 
         info!("Dalamud update completed");
     } else {
@@ -665,12 +736,15 @@ async fn setup_dalamud(config: &LaunchConfig) -> Result<String, String> {
 
     // Update assets if needed
     if needs_asset_update {
-        info!("Updating assets from version {} to {}", current_asset_ver, asset_info.version);
-        
+        info!(
+            "Updating assets from version {} to {}",
+            current_asset_ver, asset_info.version
+        );
+
         // Download and extract the package
         let temp_path = format!("{}/asset_package_temp.zip", config.dalamud_path);
         download_file(&client, &asset_info.package_url, &temp_path).await?;
-        
+
         // Extract package to assets directory
         let assets_dir = format!("{}/dalamudAssets", config.dalamud_path);
         extract_zip(&temp_path, &assets_dir)?;
@@ -680,20 +754,26 @@ async fn setup_dalamud(config: &LaunchConfig) -> Result<String, String> {
         for asset in &asset_info.assets {
             let target_path = format!("{}/dalamudAssets/{}", config.dalamud_path, asset.file_name);
             if !Path::new(&target_path).exists() {
-                error!("Required asset file not found after extraction: {}", asset.file_name);
+                error!(
+                    "Required asset file not found after extraction: {}",
+                    asset.file_name
+                );
                 return Err(format!("Missing required asset file: {}", asset.file_name));
             }
 
             if let Some(expected_hash) = &asset.hash {
                 let contents = fs::read(&target_path)
                     .map_err(|e| format!("Failed to read file {}: {}", asset.file_name, e))?;
-                
+
                 let mut hasher = Sha1::new();
                 hasher.update(&contents);
                 let file_hash = hex::encode(hasher.finalize()).to_uppercase();
-                
+
                 if file_hash != *expected_hash {
-                    error!("Hash mismatch for {}: expected {}, got {}", asset.file_name, expected_hash, file_hash);
+                    error!(
+                        "Hash mismatch for {}: expected {}, got {}",
+                        asset.file_name, expected_hash, file_hash
+                    );
                     return Err(format!("Hash verification failed for {}", asset.file_name));
                 }
             }
@@ -712,13 +792,27 @@ async fn setup_dalamud(config: &LaunchConfig) -> Result<String, String> {
     let injector_path = format!("{}/Dalamud.Injector.exe", current_version_path);
     if !Path::new(&injector_path).exists() {
         error!("Dalamud injector not found at: {}", injector_path);
-        return Err(format!("Dalamud injector not found at {}. Please ensure Dalamud is properly installed.", injector_path));
+        return Err(format!(
+            "Dalamud injector not found at {}. Please ensure Dalamud is properly installed.",
+            injector_path
+        ));
     }
 
-    let fasm_dll = format!("{}/FASM{}.DLL", current_version_path, if cfg!(target_arch = "x86_64") { "X64" } else { "" });
+    let fasm_dll = format!(
+        "{}/FASM{}.DLL",
+        current_version_path,
+        if cfg!(target_arch = "x86_64") {
+            "X64"
+        } else {
+            ""
+        }
+    );
     if !Path::new(&fasm_dll).exists() {
         error!("FASM DLL not found at: {}", fasm_dll);
-        return Err(format!("FASM DLL not found at {}. Please ensure Dalamud is properly installed.", fasm_dll));
+        return Err(format!(
+            "FASM DLL not found at {}. Please ensure Dalamud is properly installed.",
+            fasm_dll
+        ));
     }
 
     // Handle font files
@@ -731,7 +825,7 @@ async fn setup_dalamud(config: &LaunchConfig) -> Result<String, String> {
     for (file_name, required_name) in font_files {
         let font_path = format!("{}/{}", uires_path, file_name);
         let required_path = format!("{}/{}", uires_path, required_name);
-        
+
         if Path::new(&font_path).exists() && !Path::new(&required_path).exists() {
             info!("Creating font link from {} to {}", font_path, required_path);
             #[cfg(windows)]
@@ -751,14 +845,14 @@ async fn setup_dalamud(config: &LaunchConfig) -> Result<String, String> {
 
 async fn download_file(client: &Client, url: &str, path: &str) -> Result<(), String> {
     info!("Starting download from: {}", url);
-    
+
     let mut current_url = url.to_string();
     let mut retries = 0;
     const MAX_RETRIES: u32 = 15;
 
     while retries < MAX_RETRIES {
         info!("Attempting download from: {}", current_url);
-        
+
         let response = client
             .get(&current_url)
             .timeout(Duration::from_secs(300))
@@ -769,7 +863,8 @@ async fn download_file(client: &Client, url: &str, path: &str) -> Result<(), Str
         // Check if we got redirected
         if response.status().is_redirection() {
             if let Some(new_url) = response.headers().get("location") {
-                current_url = new_url.to_str()
+                current_url = new_url
+                    .to_str()
                     .map_err(|e| format!("Invalid redirect URL: {}", e))?
                     .to_string();
                 info!("Following redirect to: {}", current_url);
@@ -786,15 +881,17 @@ async fn download_file(client: &Client, url: &str, path: &str) -> Result<(), Str
                 .await
                 .map_err(|e| format!("Failed to get response bytes: {}", e))?;
 
-            fs::write(path, bytes)
-                .map_err(|e| format!("Failed to write file: {}", e))?;
+            fs::write(path, bytes).map_err(|e| format!("Failed to write file: {}", e))?;
 
             info!("Download completed successfully");
             return Ok(());
         }
 
         // If we got here, the response wasn't a redirect or success
-        return Err(format!("Download failed with status: {}", response.status()));
+        return Err(format!(
+            "Download failed with status: {}",
+            response.status()
+        ));
     }
 
     Err(format!("Too many redirects while downloading from {}", url))
@@ -857,11 +954,12 @@ async fn inject_dalamud(config: &LaunchConfig, sid: &str) -> Result<String, Stri
     info!("Using Dalamud version: {}", version_info.assembly_version);
 
     // Normalize base path for injection
-    let base_path = if config.dalamud_path.ends_with("/addon") || config.dalamud_path.ends_with("\\addon") {
-        config.dalamud_path.clone()
-    } else {
-        format!("{}/addon", config.dalamud_path)
-    };
+    let base_path =
+        if config.dalamud_path.ends_with("/addon") || config.dalamud_path.ends_with("\\addon") {
+            config.dalamud_path.clone()
+        } else {
+            format!("{}/addon", config.dalamud_path)
+        };
     info!("Using Dalamud base path for injection: {}", base_path);
 
     // Construct version-specific paths
@@ -871,7 +969,10 @@ async fn inject_dalamud(config: &LaunchConfig, sid: &str) -> Result<String, Stri
 
     // Wait for the configured injection delay
     if config.injection_delay > 0 {
-        info!("Waiting {}ms before injecting Dalamud", config.injection_delay);
+        info!(
+            "Waiting {}ms before injecting Dalamud",
+            config.injection_delay
+        );
         tokio::time::sleep(tokio::time::Duration::from_millis(config.injection_delay)).await;
     }
 
@@ -912,9 +1013,18 @@ async fn inject_dalamud(config: &LaunchConfig, sid: &str) -> Result<String, Stri
     // Prepare all argument strings
     let game_arg = format!("--game={}", game_path);
     let working_dir_arg = format!("--dalamud-working-directory={}", version_path); // Use version-specific path
-    let config_path_arg = format!("--dalamud-configuration-path={}/config", config.dalamud_path);
-    let plugin_dir_arg = format!("--dalamud-plugin-directory={}/installedPlugins", config.dalamud_path);
-    let asset_dir_arg = format!("--dalamud-asset-directory={}/dalamudAssets", config.dalamud_path);
+    let config_path_arg = format!(
+        "--dalamud-configuration-path={}/config",
+        config.dalamud_path
+    );
+    let plugin_dir_arg = format!(
+        "--dalamud-plugin-directory={}/installedPlugins",
+        config.dalamud_path
+    );
+    let asset_dir_arg = format!(
+        "--dalamud-asset-directory={}/dalamudAssets",
+        config.dalamud_path
+    );
     let log_path_arg = format!("--logpath={}/logs", config.dalamud_path);
     let lang_arg = format!("--dalamud-client-language={}", config.language);
     let delay_arg = format!("--dalamud-delay-initialize={}", config.injection_delay);
@@ -1032,7 +1142,7 @@ where
     D: serde::Deserializer<'de>,
 {
     use serde::de::Error;
-    
+
     #[derive(Deserialize)]
     #[serde(untagged)]
     enum StringOrNumber {
@@ -1058,9 +1168,15 @@ pub struct Banner {
     #[serde(rename = "lsb_banner")]
     pub lsb_banner: String,
     pub link: String,
-    #[serde(rename = "order_priority", deserialize_with = "deserialize_string_or_number")]
+    #[serde(
+        rename = "order_priority",
+        deserialize_with = "deserialize_string_or_number"
+    )]
     pub order_priority: Option<i32>,
-    #[serde(rename = "fix_order", deserialize_with = "deserialize_string_or_number")]
+    #[serde(
+        rename = "fix_order",
+        deserialize_with = "deserialize_string_or_number"
+    )]
     pub fix_order: Option<i32>,
 }
 
@@ -1079,12 +1195,12 @@ pub async fn get_news(language: u32, force_na: bool) -> Result<Headlines, String
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_millis();
-    
+
     let lang_code = match language {
         1 => "en-us",
-        2 => "de-de", 
+        2 => "de-de",
         3 => "fr-fr",
-        _ => "en-us"
+        _ => "en-us",
     };
 
     let url = format!(
@@ -1105,6 +1221,8 @@ pub async fn get_news(language: u32, force_na: bool) -> Result<Headlines, String
         .await
         .map_err(|e| format!("Failed to get response text: {}", e))?;
 
+    println!("{:?}", text); // Log the response text in plain text
+
     serde_json::from_str(&text).map_err(|e| format!("Failed to parse news JSON: {}", e))
 }
 
@@ -1114,16 +1232,16 @@ pub async fn get_banners(language: u32, force_na: bool) -> Result<Vec<Banner>, S
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_millis();
-    
+
     let lang_code = match language {
         1 => "en-us",
         2 => "de-de",
-        3 => "fr-fr", 
-        _ => "en-us"
+        3 => "fr-fr",
+        _ => "en-us",
     };
 
     let url = format!(
-        "https://frontier.ffxiv.com/v2/topics/{}/banner.json?lang={}&media=pcapp&_={}", 
+        "https://frontier.ffxiv.com/v2/topics/{}/banner.json?lang={}&media=pcapp&_={}",
         lang_code, lang_code, unix_timestamp
     );
 
@@ -1140,13 +1258,15 @@ pub async fn get_banners(language: u32, force_na: bool) -> Result<Vec<Banner>, S
         .await
         .map_err(|e| format!("Failed to get response text: {}", e))?;
 
+    println!("{:?}", text); // Log the response text in plain text
+
     #[derive(Deserialize)]
     struct BannerRoot {
-        banner: Vec<Banner>
+        banner: Vec<Banner>,
     }
 
-    let root: BannerRoot = serde_json::from_str(&text)
-        .map_err(|e| format!("Failed to parse banner JSON: {}", e))?;
+    let root: BannerRoot =
+        serde_json::from_str(&text).map_err(|e| format!("Failed to parse banner JSON: {}", e))?;
 
     Ok(root.banner)
 }

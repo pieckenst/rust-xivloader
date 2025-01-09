@@ -15,7 +15,10 @@
   import { z } from "zod";
   import type { SuperForm, SuperValidated } from "sveltekit-superforms";
   import { toast } from "svelte-sonner";
-  
+  import { open } from '@tauri-apps/plugin-shell';
+  import { Loader2 } from "lucide-svelte";
+  import * as Tabs from "$lib/components/ui/tabs/index.js";
+
   let username = '';
   let password = '';
   let otp = '';
@@ -95,6 +98,40 @@
     logStore.addLog("Navigating back to main page");
     goto("/", { replaceState: true });
   }
+
+  async function handleNewsClick(url: string, event: MouseEvent) {
+    event.preventDefault();
+    try {
+      await open(url);
+    } catch (error) {
+      logStore.addLog(`Failed to open URL: ${error}`);
+    }
+  }
+
+  function validateOtpInput(value: string): boolean {
+    return /^\d*$/.test(value);
+  }
+
+  async function handleRegistration(type: 'general' | 'ffxiv') {
+    const baseUrl = type === 'general' 
+      ? 'https://secure.square-enix.com/oauth/oa/registligt'
+      : 'https://secure.square-enix.com/account/app/svc/ffxivregister';
+
+    const params = new URLSearchParams({
+      client_id: 'support',
+      ref: 'support_na_login',
+      svcgrp: 'Service_SEA',
+      response_type: 'code',
+      lng: 'en-us',
+      redirect_uri: encodeURIComponent(window.location.origin + '/callback')
+    });
+
+    try {
+      await open(`${baseUrl}?${params.toString()}`);
+    } catch (error) {
+      logStore.addLog(`Failed to open registration page: ${error}`);
+    }
+  }
 </script>
 
 <div class="flex h-screen w-screen flex-col items-center justify-center gap-2">
@@ -170,17 +207,18 @@
                     <InputOTP.Root 
                       maxlength={6}
                       bind:value={formData.otp}
+                      class="otp-root"
                     >
                       {#snippet children({ cells })}
-                        <InputOTP.Group>
+                        <InputOTP.Group class="otp-group">
                           {#each cells.slice(0, 3) as cell}
-                            <InputOTP.Slot {cell} />
+                            <InputOTP.Slot {cell} class="otp-input" />
                           {/each}
                         </InputOTP.Group>
-                        <InputOTP.Separator />
-                        <InputOTP.Group>
+                        <InputOTP.Separator class="mx-2 text-muted-foreground" />
+                        <InputOTP.Group class="otp-group">
                           {#each cells.slice(3, 6) as cell}
-                            <InputOTP.Slot {cell} />
+                            <InputOTP.Slot {cell} class="otp-input" />
                           {/each}
                         </InputOTP.Group>
                       {/snippet}
@@ -201,6 +239,34 @@
                   Back to login
                 </button>
               {/if}
+
+              <div class="relative my-4">
+                <div class="absolute inset-0 flex items-center">
+                  <span class="w-full border-t" />
+                </div>
+                <div class="relative flex justify-center text-xs uppercase">
+                  <span class="bg-background px-2 text-muted-foreground">
+                    Or create an account
+                  </span>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  class={buttonVariants({ variant: "outline", class: "w-full" })}
+                  on:click={() => handleRegistration('general')}
+                >
+                  Square Enix Account
+                </button>
+                <button
+                  type="button"
+                  class={buttonVariants({ variant: "outline", class: "w-full" })}
+                  on:click={() => handleRegistration('ffxiv')}
+                >
+                  FFXIV Trial Account
+                </button>
+              </div>
 
               <div class="flex gap-2 pt-4">
                 <a href="/" class={buttonVariants({ variant: "outline", class: "flex-1" })} on:click|preventDefault={handleBack}>
@@ -225,29 +291,61 @@
                     src={banners[currentBanner].lsb_banner} 
                     alt="FFXIV Banner"
                     class="absolute inset-0 h-full w-full object-cover banner-image"
+                    on:click={(e) => handleNewsClick(banners[currentBanner].link, e)}
+                    style="cursor: pointer;"
                   />
                 {/key}
               </div>
             </Card.Root>
 
-            <!-- News List -->
-            {#if headlines?.news?.length > 0}
-              <div class="space-y-2">
-                <h3 class="text-sm font-medium">Latest News</h3>
-                {#each headlines.news.slice(0, 3) as item}
-                  <a 
-                    href={item.url} 
-                    target="_blank" 
-                    class="block p-2 rounded-lg hover:bg-muted/50 transition-colors news-item"
-                  >
-                    <p class="text-sm font-medium">{item.title}</p>
-                    <p class="text-xs text-muted-foreground">{new Date(item.date).toLocaleDateString()}</p>
-                  </a>
-                {/each}
-              </div>
-            {/if}
+            <!-- News Tabs -->
+            <Tabs.Root value="topics" class="w-full">
+              <Tabs.List class="grid w-full grid-cols-2">
+                <Tabs.Trigger value="topics">Topics</Tabs.Trigger>
+                <Tabs.Trigger value="updates">Latest Updates</Tabs.Trigger>
+              </Tabs.List>
+              
+              <!-- Topics Tab -->
+              <Tabs.Content value="topics">
+                {#if headlines?.topics?.length > 0}
+                  <div class="space-y-2 pt-4">
+                    {#each headlines.topics.slice(0, 3) as item}
+                      {#if item.url}
+                        <button 
+                          on:click={(e) => handleNewsClick(item.url, e)}
+                          class="block w-full text-left p-2 rounded-lg hover:bg-muted/50 transition-colors news-item"
+                        >
+                          <p class="text-sm font-medium">{item.title}</p>
+                          <p class="text-xs text-muted-foreground">{new Date(item.date).toLocaleDateString()}</p>
+                        </button>
+                      {:else}
+                        <div class="block w-full text-left p-2 rounded-lg news-item">
+                          <p class="text-sm font-medium">{item.title}</p>
+                          <p class="text-xs text-muted-foreground">{new Date(item.date).toLocaleDateString()}</p>
+                        </div>
+                      {/if}
+                    {/each}
+                  </div>
+                {/if}
+              </Tabs.Content>
+
+              <!-- Updates Tab -->
+              <Tabs.Content value="updates">
+                {#if headlines?.news?.length > 0}
+                  <div class="space-y-2 pt-4">
+                    {#each headlines.news.slice(0, 3) as item}
+                      <div class="block w-full text-left p-2 rounded-lg news-item">
+                        <p class="text-sm font-medium">{item.title}</p>
+                        <p class="text-xs text-muted-foreground">{new Date(item.date).toLocaleDateString()}</p>
+                      </div>
+                    {/each}
+                  </div>
+                {/if}
+              </Tabs.Content>
+            </Tabs.Root>
           {:else}
-            <div class="flex items-center justify-center h-full">
+            <div class="flex items-center justify-center h-full gap-2">
+              <Loader2 class="h-4 w-4 animate-spin" />
               <p class="text-muted-foreground">Loading news...</p>
             </div>
           {/if}
@@ -255,6 +353,7 @@
       </div>
     </Card.Content>
   </Card.Root>
+ 
 </div>
 
 <style>
@@ -381,6 +480,49 @@
     100% {
       opacity: 1;
       transform: scale(1) translateX(0);
+    }
+  }
+
+  /* Enhanced OTP styling */
+  :global(.otp-root) {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  :global(.otp-group) {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  :global(.otp-input) {
+    width: 2.5rem;
+    height: 2.5rem;
+    font-size: 1.25rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    text-align: center;
+    background: var(--background);
+    transition: all 0.2s ease;
+  }
+
+  :global(.otp-input:focus) {
+    border-color: var(--ring);
+    box-shadow: 0 0 0 1px var(--ring);
+  }
+
+  :global(.otp-input[data-complete]) {
+    animation: numberEntered 0.3s ease-out;
+  }
+
+  @keyframes numberEntered {
+    0% {
+      transform: scale(1.1);
+      opacity: 0.5;
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
     }
   }
 </style>
