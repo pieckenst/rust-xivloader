@@ -199,21 +199,17 @@
                         {:else}
                           {#each $logStore as log}
                             <div class="text-sm font-mono p-2 rounded border border-muted-foreground/20
-
                                       {log.type === 'error' ? 'bg-red-500/10 border-red-500/20' : 
                                        log.type === 'success' ? 'bg-green-500/10 border-green-500/20' :
                                        log.type === 'start' ? 'bg-blue-500/10 border-blue-500/20' :
                                        'bg-muted/30'}">
-
                               {formatDisplayLog(log)}
                             </div>
                           {/each}
                         {/if}
                         <div class="mt-4 flex justify-end">
-
                           <button 
                             class={buttonVariants({ variant: "outline", size: "sm" })}
-
                             on:click={() => logStore.clear()}
                           >
                             Clear Logs
@@ -305,5 +301,46 @@
   
   .dark::view-transition-new(root) {
     z-index: 1;
+  }
+
+  /* Card size transitions */
+  :global(.card) {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-origin: center;
+    will-change: transform, opacity, max-height, min-height, width;
+  }
+
+  :global(.card:focus-within) {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+  }
+
+  /* Content animations */
+  .content-section {
+    animation: fadeScale 0.4s ease-out;
+  }
+
+  @keyframes fadeScale {
+    from {
+      opacity: 0;
+      transform: scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  /* Button hover animations */
+  :global(button:not(:disabled)) {
+    transition: all 0.2s ease;
+  }
+
+  :global(button:not(:disabled):hover) {
+    transform: translateY(-1px);
+  }
+
+  :global(button:not(:disabled):active) {
+    transform: translateY(0);
   }
 </style>

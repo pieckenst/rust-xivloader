@@ -9,7 +9,6 @@
   import { invoke } from "@tauri-apps/api/core";
   import { onMount } from 'svelte';
   import { gameConfig } from '$lib/stores/game-config';
-
   import { logStore } from '$lib/stores/log-store';
   import { superForm } from "sveltekit-superforms/client";
   import { zodClient } from "sveltekit-superforms/adapters";
@@ -19,7 +18,6 @@
   import { open } from '@tauri-apps/plugin-shell';
   import { Loader2 } from "lucide-svelte";
   import * as Tabs from "$lib/components/ui/tabs/index.js";
-
 
   let username = '';
   let password = '';
@@ -35,7 +33,6 @@
     password: z.string().min(1, "Password is required"),
     otp: z.string().optional()
   });
-
 
   type FormSchema = z.infer<typeof formSchema>;
 
@@ -72,7 +69,6 @@
       otp = formData.otp || '';
       handleNext();
     }
-
   }
 
   onMount(async () => {
@@ -528,5 +524,32 @@
       transform: scale(1);
       opacity: 1;
     }
+  }
+
+  /* Card size transitions */
+  :global(.card) {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-origin: center;
+    will-change: transform, opacity, max-height, min-height, width;
+  }
+
+  :global(.card:focus-within) {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+  }
+
+  /* Tab content transitions */
+  :global([role="tabpanel"]) {
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+
+  :global([role="tabpanel"][hidden]) {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+
+  :global([role="tabpanel"]:not([hidden])) {
+    opacity: 1;
+    transform: translateY(0);
   }
 </style>

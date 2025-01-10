@@ -1,5 +1,4 @@
 <script lang="ts">
-
     import { Button, buttonVariants } from "$lib/components/ui/button/index.js";
     import * as Card from "$lib/components/ui/card/index.js";
     import * as Accordion from "$lib/components/ui/accordion/index.js";
@@ -7,22 +6,23 @@
     import { Label } from "$lib/components/ui/label/index.js";
     import { Switch } from "$lib/components/ui/switch/index.js";
     import * as Sidebar from "$lib/components/ui/sidebar/index.js";
-
+    import TitleBar from "$lib/components/TitleBar.svelte";
     import { goto } from "$app/navigation";
     import { invoke } from "@tauri-apps/api/core";
     import { appLocalDataDir } from "@tauri-apps/api/path";
     import { gameConfig } from '$lib/stores/game-config';
     import { logStore, type LogEntry } from '$lib/stores/log-store';
-
-    import { Home, Settings, Download, FileText, Globe, Gamepad2, Wrench, Terminal } from "lucide-svelte";
-
+    import { Home, Settings, Download, FileText, Globe, Gamepad2, Wrench, Terminal, Languages, ScrollText, Palette } from "lucide-svelte";
+    import { settings, saveSettings } from '$lib/stores/settings-store';
+    import { getCurrentWindow } from '@tauri-apps/api/window';
+    import { onMount } from 'svelte';
+    import { writable } from 'svelte/store';
   
     let gamePath = $gameConfig.gamePath;
     let isSteam = $gameConfig.isSteam;
     let statusString = "Ready to launch";
     let autoScroll = true;
     let logContainer: HTMLElement;
-
 
     // Add Dalamud configuration
     let dalamudEnabled = false;
@@ -42,17 +42,22 @@
       },
       {
         name: "Dalamud",
-        icon: Wrench,
+        icon: Settings,
         id: "dalamud"
       },
       {
-        name: "Language & Region",
-        icon: Globe,
+        name: "Appearance",
+        icon: Palette,
+        id: "appearance"
+      },
+      {
+        name: "Language",
+        icon: Languages,
         id: "language"
       },
       {
         name: "Logs",
-        icon: Terminal,
+        icon: ScrollText,
         id: "logs"
       }
     ];
@@ -78,7 +83,6 @@
                      entry.type === 'start' ? '📝' : 'ℹ️';
         return `[${entry.timestamp}] ${icon} ${entry.message}`;
     }
-
 
     async function handleLaunch() {
         try {
@@ -135,6 +139,87 @@
         logStore.addLog("Navigating back to login page");
         goto("/login");
     }
+
+    async function toggleCustomTitlebar(checked: boolean) {
+        const window = await getCurrentWindow();
+        try {
+            if (checked) {
+                // Enable custom titlebar
+                await window.setDecorations(false);
+                document.body.classList.add('titlebar-enabled');
+            } else {
+                // Disable custom titlebar
+                await window.setDecorations(true);
+                document.body.classList.remove('titlebar-enabled');
+            }
+            await saveSettings({
+                ...$settings,
+                useCustomTitlebar: checked
+            });
+        } catch (error) {
+            console.error('Failed to toggle window decorations:', error);
+            logStore.addLog(`Failed to toggle window decorations: ${error}`);
+        }
+    }
+
+    // Initialize window decorations based on settings
+    onMount(async () => {
+        const window = await getCurrentWindow();
+        try {
+            if ($settings.useCustomTitlebar) {
+                await window.setDecorations(false);
+                document.body.classList.add('titlebar-enabled');
+            } else {
+                await window.setDecorations(true);
+                document.body.classList.remove('titlebar-enabled');
+            }
+        } catch (error) {
+            console.error('Failed to initialize window decorations:', error);
+            logStore.addLog(`Failed to initialize window decorations: ${error}`);
+        }
+    });
+
+    // Initialize preview settings store
+    const previewSettings = writable({
+        centerTitle: $settings.centerTitle,
+        showMinimize: $settings.showMinimize,
+        showMaximize: $settings.showMaximize
+    });
+
+    // Update preview settings when main settings change
+    $: {
+        if ($settings.useCustomTitlebar) {
+            previewSettings.set({
+                centerTitle: $settings.centerTitle,
+                showMinimize: $settings.showMinimize,
+                showMaximize: $settings.showMaximize
+            });
+        }
+    }
+
+    // Function to apply preview settings
+    async function applyTitlebarSettings() {
+        const window = await getCurrentWindow();
+        try {
+            const newSettings = {
+                ...$settings,
+                centerTitle: $previewSettings.centerTitle,
+                showMinimize: $previewSettings.showMinimize,
+                showMaximize: $previewSettings.showMaximize
+            };
+            
+            // First update the settings store
+            await saveSettings(newSettings);
+            
+            // Dispatch a custom event to notify layout about titlebar changes
+            await window.emit('titlebar-settings-changed', newSettings);
+            
+            logStore.addLog("Titlebar settings applied successfully");
+        } catch (error) {
+            console.error('Failed to apply titlebar settings:', error);
+            logStore.addLog(`Failed to apply titlebar settings: ${error}`);
+        }
+    }
 </script>
 
 <div class="container flex min-h-[calc(100vh-4rem)] items-center justify-center gap-4 py-6">
@@ -150,7 +235,6 @@
           <Card.Title class="text-2xl">XIV Loader</Card.Title>
           <Card.Description>Configure your game installation settings.</Card.Description>
         </div>
-
       </div>
     </Card.Header>
 
@@ -204,13 +288,11 @@
               </div>
             {:else if activeSection === 'dalamud'}
               <div class="space-y-6">
-
                 <div class="flex items-center justify-between">
                   <div class="space-y-0.5">
                     <Label for="dalamud">Dalamud Support</Label>
                     <div class="text-sm text-muted-foreground">
                       Enable in-game modifications and plugins
-
                     </div>
                   </div>
                   <Switch 
@@ -305,6 +387,92 @@
                   </div>
                 {/if}
               </div>
+            {:else if activeSection === 'appearance'}
+              <div class="space-y-6">
+                <div class="flex items-center justify-between">
+                  <div class="space-y-0.5">
+                    <Label>Custom Titlebar</Label>
+                    <div class="text-sm text-muted-foreground">
+                      Use a custom titlebar with window controls
+                    </div>
+                  </div>
+                  <Switch 
+                    id="titlebar" 
+                    checked={$settings.useCustomTitlebar} 
+                    onCheckedChange={toggleCustomTitlebar}
+                  />
+                </div>
+
+                {#if $settings.useCustomTitlebar}
+                  <div class="space-y-4">
+                    <div class="flex items-center justify-between">
+                      <div class="space-y-0.5">
+                        <Label>Center Window Title</Label>
+                        <div class="text-sm text-muted-foreground">
+                          Center the window title in the titlebar
+                        </div>
+                      </div>
+                      <Switch 
+                        id="centerTitle" 
+                        checked={$previewSettings.centerTitle} 
+                        onCheckedChange={(checked) => previewSettings.update(s => ({ ...s, centerTitle: checked }))}
+                      />
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                      <div class="space-y-0.5">
+                        <Label>Show Minimize Button</Label>
+                        <div class="text-sm text-muted-foreground">
+                          Show the minimize window button
+                        </div>
+                      </div>
+                      <Switch 
+                        id="showMinimize" 
+                        checked={$previewSettings.showMinimize} 
+                        onCheckedChange={(checked) => previewSettings.update(s => ({ ...s, showMinimize: checked }))}
+                      />
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                      <div class="space-y-0.5">
+                        <Label>Show Maximize Button</Label>
+                        <div class="text-sm text-muted-foreground">
+                          Show the maximize window button
+                        </div>
+                      </div>
+                      <Switch 
+                        id="showMaximize" 
+                        checked={$previewSettings.showMaximize} 
+                        onCheckedChange={(checked) => previewSettings.update(s => ({ ...s, showMaximize: checked }))}
+                      />
+                    </div>
+
+                    <div class="rounded-lg border p-4 space-y-4">
+                      <div class="space-y-1">
+                        <Label>Preview</Label>
+                        <div class="text-sm text-muted-foreground">
+                          Preview your titlebar settings before applying them
+                        </div>
+                      </div>
+                      <div class="relative h-[47px] rounded-lg border bg-background overflow-hidden">
+                        <div class="preview-only">
+                          <TitleBar
+                            title="Preview - XIVloader"
+                            centerTitle={$previewSettings.centerTitle}
+                            showMinimize={$previewSettings.showMinimize}
+                            showMaximize={$previewSettings.showMaximize}
+                          />
+                        </div>
+                      </div>
+                      <button class={buttonVariants({ variant: "outline" })}
+                        on:click={applyTitlebarSettings}
+                      >Apply Titlebar Settings</button>
+                        
+                      
+                    </div>
+                  </div>
+                {/if}
+              </div>
             {:else if activeSection === 'language'}
               <div class="space-y-6">
                 <p class="text-muted-foreground">Language settings coming soon...</p>
@@ -372,7 +540,6 @@
               </a>
 
               <button class={buttonVariants({ variant: "outline" })} disabled>
-
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2 h-4 w-4">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                   <polyline points="7 10 12 15 17 10"/>
@@ -386,7 +553,6 @@
               </button>
             </div>
           </div>
-
         </main>
       </div>
     </Card.Content>
@@ -412,5 +578,56 @@
     background-color: rgba(155, 155, 155, 0.5);
     border-radius: 20px;
     border: transparent;
+  }
+
+  /* Card size transitions */
+  :global(.card) {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-origin: center;
+    will-change: transform, opacity, max-height, min-height, width;
+  }
+
+  :global(.card:focus-within) {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+  }
+
+  /* Form transitions */
+  .form-section {
+    animation: slideUp 0.3s ease-out;
+  }
+
+  .form-section:nth-child(2) {
+    animation-delay: 0.1s;
+  }
+
+  .form-section:nth-child(3) {
+    animation-delay: 0.2s;
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Input focus animations */
+  :global(input:focus), :global(select:focus) {
+    transition: all 0.2s ease;
+    transform: translateY(-1px);
+  }
+
+  /* Add to existing styles */
+  :global(.preview-only .titlebar) {
+    position: relative !important;
+    top: unset !important;
+    left: unset !important;
+    right: unset !important;
+    z-index: 1 !important;
   }
 </style>

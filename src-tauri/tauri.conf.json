@@ -14,7 +14,9 @@
       {
         "title": "XIVloader - Final Fantasy XIV launcher",
         "width": 1450,
-        "height": 950
+        "height": 950,
+        "decorations": false,
+        "transparent": true
       }
     ],
     "security": {
