@@ -86,4 +86,6 @@ windows-sys = "0.59"
 walkdir = "2.4"
 tauri-plugin-log = "2"
 log = "0.4"
+tauri-plugin-shell = "2"
+tauri-plugin-store = "2"
 

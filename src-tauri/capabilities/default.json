@@ -9,6 +9,20 @@
     "core:default",
     "opener:default",
     "log:default",
-    "log:default"
+    "core:app:default",
+    "core:resources:default",
+    "core:menu:default",
+    "core:tray:default",
+    "core:window:default",
+    "core:window:allow-set-title",
+    "shell:default",
+    "store:default",
+    "core:window:allow-start-dragging",
+    "core:window:allow-minimize",
+    "core:window:allow-close",
+    "core:window:allow-maximize",
+    "core:window:allow-unmaximize",
+    "core:window:allow-unminimize",
+    "core:window:allow-set-decorations"
   ]
 }

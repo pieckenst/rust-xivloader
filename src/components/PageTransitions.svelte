@@ -6,7 +6,7 @@
   let key = '';
   
   onNavigate((navigation) => {
-    key = navigation.to?.url.pathname;
+    key = navigation.to?.url.pathname ?? '';
     
     if (!document.startViewTransition) return;
 

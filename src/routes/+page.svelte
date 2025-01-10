@@ -1,9 +1,8 @@
 <script lang="ts">
-  import { Button } from "$lib/components/ui/button";
-  import * as Card from "$lib/components/ui/card";
-  import * as Accordion from "$lib/components/ui/accordion";
-
-  import * as AlertDialog from "$lib/components/ui/alert-dialog";
+  import { Button, buttonVariants } from "$lib/components/ui/button/index.js";
+  import * as Card from "$lib/components/ui/card/index.js";
+  import * as Accordion from "$lib/components/ui/accordion/index.js";
+  import * as AlertDialog from "$lib/components/ui/alert-dialog/index.js";
   import Sun from "lucide-svelte/icons/sun";
   import Moon from "lucide-svelte/icons/moon";
   import Info from "lucide-svelte/icons/info";
@@ -101,47 +100,41 @@
 <div class="flex h-screen w-screen flex-col items-center justify-center gap-2">
   <Card.Root class="max-h-[800px] min-h-[480px] w-[800px] flex flex-col">
     <Card.Header class="pb-0 flex flex-row items-center justify-between">
-      <div>
-        <Card.Title class="flex flex-row items-center gap-2">
-          XIV Loader
-          <span class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold">
-            1.0.0
-          </span>
-        </Card.Title>
-        <Card.Description>
-          The easiest way to manage your XIV installation.
-        </Card.Description>
-      </div>
-      
       <div class="flex items-center gap-2">
-        
-        <Button 
-        on:click={handleThemeToggle} 
-        variant="outline" 
-        size="icon"
-        class="relative border border-input bg-background hover:bg-accent hover:text-accent-foreground transition-all duration-300"
-      >
-        <Sun
-          class="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all duration-300 dark:-rotate-90 dark:scale-0"
-        />
-        <Moon
-          class="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all duration-300 dark:rotate-0 dark:scale-100"
-        />
-        <span class="sr-only">Toggle theme</span>
-      </Button>
+        <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-6 w-6 text-primary-foreground">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <div>
+          <Card.Title class="text-2xl">XIV Loader</Card.Title>
+          <Card.Description>The easiest way to launch Final Fantasy XIV.</Card.Description>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button 
+          class={buttonVariants({ variant: "outline", size: "icon" })}
+          on:click={handleThemeToggle}
+        >
+          <Sun
+            class="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all duration-300 dark:-rotate-90 dark:scale-0"
+          />
+          <Moon
+            class="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all duration-300 dark:rotate-0 dark:scale-100"
+          />
+          <span class="sr-only">Toggle theme</span>
+        </button>
 
-
-        <Button variant="outline" size="icon">
-          <a 
-            href="https://github.com/pieckenst/rust-xivloader" 
-            target="_blank"
-            aria-label="View source on GitHub"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" class="h-4 w-4">
-              <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
-            </svg>
-          </a>
-        </Button>
+        <a 
+          href="https://github.com/pieckenst/rust-xivloader" 
+          target="_blank"
+          class={buttonVariants({ variant: "outline", size: "icon" })}
+          aria-label="View source on GitHub"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" class="h-4 w-4">
+            <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+          </svg>
+        </a>
       </div>
     </Card.Header>
 
@@ -155,17 +148,16 @@
         </div>
 
         <div class="p-6 pt-0 absolute bottom-0 right-0 flex w-full flex-row items-center justify-between gap-2">
-
           <AlertDialog.Root>
-            <AlertDialog.Trigger asChild let:builder>
-              <Button builders={[builder]} variant="outline">
+            <AlertDialog.Trigger>
+              <button class={buttonVariants({ variant: "outline" })}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2 h-4 w-4">
                   <circle cx="12" cy="12" r="10"/>
                   <path d="M12 16v-4"/>
                   <path d="M12 8h.01"/>
                 </svg>
                 Troubleshooting
-              </Button>
+              </button>
             </AlertDialog.Trigger>
           
             <AlertDialog.Content class="sm:max-w-[725px] max-h-[85vh] overflow-hidden">
@@ -177,7 +169,7 @@
               </AlertDialog.Header>
           
               <div class="flex-1 overflow-y-auto px-4 py-3">
-                <Accordion.Root class="w-full space-y-2">
+                <Accordion.Root type="multiple" class="w-full space-y-2">
                   <Accordion.Item value="game-launch">
                     <Accordion.Trigger class="w-full px-4 py-2 text-sm font-medium">
                       Game Launch Issues
@@ -207,22 +199,21 @@
                         {:else}
                           {#each $logStore as log}
                             <div class="text-sm font-mono p-2 rounded border border-muted-foreground/20
-                                        {log.type === 'error' ? 'bg-red-500/10 border-red-500/20' : 
-                                         log.type === 'success' ? 'bg-green-500/10 border-green-500/20' :
-                                         log.type === 'start' ? 'bg-blue-500/10 border-blue-500/20' :
-                                         'bg-muted/30'}">
+                                      {log.type === 'error' ? 'bg-red-500/10 border-red-500/20' : 
+                                       log.type === 'success' ? 'bg-green-500/10 border-green-500/20' :
+                                       log.type === 'start' ? 'bg-blue-500/10 border-blue-500/20' :
+                                       'bg-muted/30'}">
                               {formatDisplayLog(log)}
                             </div>
                           {/each}
                         {/if}
                         <div class="mt-4 flex justify-end">
-                          <Button 
-                            variant="outline" 
-                            size="sm"
+                          <button 
+                            class={buttonVariants({ variant: "outline", size: "sm" })}
                             on:click={() => logStore.clear()}
                           >
                             Clear Logs
-                          </Button>
+                          </button>
                         </div>
                       </div>
                     </Accordion.Content>
@@ -270,18 +261,18 @@
           
         
           <div class="flex flex-row items-center gap-2">
-            <Button variant="outline" disabled>
+            <button class={buttonVariants({ variant: "outline" })} disabled>
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2 h-4 w-4">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                 <polyline points="7 10 12 15 17 10"/>
                 <line x1="12" x2="12" y1="15" y2="3"/>
               </svg>
               Desktop
-            </Button>
+            </button>
         
-            <Button variant="outline" on:click={handleNext}>
+            <button class={buttonVariants({ variant: "outline" })} on:click={handleNext}>
               Next
-            </Button>
+            </button>
           </div>
         </div>
         
@@ -289,6 +280,7 @@
     </Card.Content>
   </Card.Root>
 </div>
+
 <style>
   ::view-transition-old(root),
   ::view-transition-new(root) {
@@ -303,12 +295,52 @@
   ::view-transition-new(root) {
     z-index: 2147483646;
   }
-
   .dark::view-transition-old(root) {
     z-index: 2147483646;
   }
   
   .dark::view-transition-new(root) {
     z-index: 1;
+  }
+
+  /* Card size transitions */
+  :global(.card) {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-origin: center;
+    will-change: transform, opacity, max-height, min-height, width;
+  }
+
+  :global(.card:focus-within) {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+  }
+
+  /* Content animations */
+  .content-section {
+    animation: fadeScale 0.4s ease-out;
+  }
+
+  @keyframes fadeScale {
+    from {
+      opacity: 0;
+      transform: scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  /* Button hover animations */
+  :global(button:not(:disabled)) {
+    transition: all 0.2s ease;
+  }
+
+  :global(button:not(:disabled):hover) {
+    transform: translateY(-1px);
+  }
+
+  :global(button:not(:disabled):active) {
+    transform: translateY(0);
   }
 </style>
