@@ -1,4 +1,5 @@
 <script lang="ts">
+
     import { Button, buttonVariants } from "$lib/components/ui/button/index.js";
     import * as Card from "$lib/components/ui/card/index.js";
     import * as Accordion from "$lib/components/ui/accordion/index.js";
@@ -6,18 +7,22 @@
     import { Label } from "$lib/components/ui/label/index.js";
     import { Switch } from "$lib/components/ui/switch/index.js";
     import * as Sidebar from "$lib/components/ui/sidebar/index.js";
+
     import { goto } from "$app/navigation";
     import { invoke } from "@tauri-apps/api/core";
     import { appLocalDataDir } from "@tauri-apps/api/path";
     import { gameConfig } from '$lib/stores/game-config';
     import { logStore, type LogEntry } from '$lib/stores/log-store';
+
     import { Home, Settings, Download, FileText, Globe, Gamepad2, Wrench, Terminal } from "lucide-svelte";
+
   
     let gamePath = $gameConfig.gamePath;
     let isSteam = $gameConfig.isSteam;
     let statusString = "Ready to launch";
     let autoScroll = true;
     let logContainer: HTMLElement;
+
 
     // Add Dalamud configuration
     let dalamudEnabled = false;
@@ -73,6 +78,7 @@
                      entry.type === 'start' ? '📝' : 'ℹ️';
         return `[${entry.timestamp}] ${icon} ${entry.message}`;
     }
+
 
     async function handleLaunch() {
         try {
@@ -144,6 +150,7 @@
           <Card.Title class="text-2xl">XIV Loader</Card.Title>
           <Card.Description>Configure your game installation settings.</Card.Description>
         </div>
+
       </div>
     </Card.Header>
 
@@ -197,11 +204,13 @@
               </div>
             {:else if activeSection === 'dalamud'}
               <div class="space-y-6">
+
                 <div class="flex items-center justify-between">
                   <div class="space-y-0.5">
                     <Label for="dalamud">Dalamud Support</Label>
                     <div class="text-sm text-muted-foreground">
                       Enable in-game modifications and plugins
+
                     </div>
                   </div>
                   <Switch 
@@ -363,6 +372,7 @@
               </a>
 
               <button class={buttonVariants({ variant: "outline" })} disabled>
+
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2 h-4 w-4">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                   <polyline points="7 10 12 15 17 10"/>
@@ -376,6 +386,7 @@
               </button>
             </div>
           </div>
+
         </main>
       </div>
     </Card.Content>

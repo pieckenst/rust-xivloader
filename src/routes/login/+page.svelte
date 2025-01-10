@@ -9,6 +9,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { onMount } from 'svelte';
   import { gameConfig } from '$lib/stores/game-config';
+
   import { logStore } from '$lib/stores/log-store';
   import { superForm } from "sveltekit-superforms/client";
   import { zodClient } from "sveltekit-superforms/adapters";
@@ -18,6 +19,7 @@
   import { open } from '@tauri-apps/plugin-shell';
   import { Loader2 } from "lucide-svelte";
   import * as Tabs from "$lib/components/ui/tabs/index.js";
+
 
   let username = '';
   let password = '';
@@ -33,6 +35,7 @@
     password: z.string().min(1, "Password is required"),
     otp: z.string().optional()
   });
+
 
   type FormSchema = z.infer<typeof formSchema>;
 
@@ -69,6 +72,7 @@
       otp = formData.otp || '';
       handleNext();
     }
+
   }
 
   onMount(async () => {

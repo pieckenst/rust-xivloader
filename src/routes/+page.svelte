@@ -199,17 +199,21 @@
                         {:else}
                           {#each $logStore as log}
                             <div class="text-sm font-mono p-2 rounded border border-muted-foreground/20
+
                                       {log.type === 'error' ? 'bg-red-500/10 border-red-500/20' : 
                                        log.type === 'success' ? 'bg-green-500/10 border-green-500/20' :
                                        log.type === 'start' ? 'bg-blue-500/10 border-blue-500/20' :
                                        'bg-muted/30'}">
+
                               {formatDisplayLog(log)}
                             </div>
                           {/each}
                         {/if}
                         <div class="mt-4 flex justify-end">
+
                           <button 
                             class={buttonVariants({ variant: "outline", size: "sm" })}
+
                             on:click={() => logStore.clear()}
                           >
                             Clear Logs

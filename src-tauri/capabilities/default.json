@@ -16,5 +16,6 @@
     "core:window:allow-set-title",
     "shell:default",
     "shell:default"
+
   ]
 }
