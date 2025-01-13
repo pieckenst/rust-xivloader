@@ -4,6 +4,10 @@
 
 @layer base {
   :root {
+    /* Window specific variables */
+    --window-padding: 10px;
+    --window-border-radius: 12px;
+    
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
@@ -36,6 +40,9 @@
  
   .dark {
     /* Lambda Studio Blackout theme */
+    --window-padding: 10px;
+    --window-border-radius: 12px;
+    
     --background: 0 0% 0%;
     --foreground: 0 0% 100%;
     --card: 0 0% 0%;
@@ -114,6 +121,7 @@
   }
   body {
     @apply bg-background text-foreground;
+    background: transparent !important;
   }
   button {
     @apply border border-input bg-background hover:bg-accent hover:text-accent-foreground;
@@ -122,4 +130,17 @@
   .dark button {
     @apply border border-input bg-transparent hover:bg-accent hover:text-accent-foreground;
   }
+}
+
+/* Window specific styles */
+:root {
+  background: transparent !important;
+}
+
+#app {
+  width: 100vw;
+  height: 100vh;
+  background: transparent;
+  border-radius: var(--window-border-radius, 12px);
+  overflow: hidden;
 }

@@ -4,6 +4,12 @@
 
 @layer base {
   :root {
+    /* Window specific variables */
+    --window-padding: 10px;
+    --window-border-radius: 12px;
+    --window-background: 0 0% 100%;
+    --window-opacity: 98%;
+    
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
@@ -36,6 +42,11 @@
 
   .dark {
     /* Lambda Studio Blackout theme */
+    --window-padding: 10px;
+    --window-border-radius: 12px;
+    --window-background: 0 0% 0%;
+    --window-opacity: 95%;
+    
     --background: 0 0% 0%;
     --foreground: 0 0% 100%;
     --card: 0 0% 0%;
@@ -78,7 +89,31 @@
   * {
     @apply border-border;
   }
+  
+  /* Default mode */
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Custom titlebar mode */
+  body.custom-titlebar-enabled {
+    background: transparent !important;
+  }
+
+  html.custom-titlebar-enabled {
+    background: transparent !important;
+  }
+}
+
+/* Window specific styles */
+#app {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Only apply transparency when custom titlebar is enabled */
+.custom-titlebar-enabled #app {
+  background: transparent !important;
+  border-radius: var(--window-border-radius, 12px);
 }
