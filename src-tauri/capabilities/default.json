@@ -23,6 +23,7 @@
     "core:window:allow-maximize",
     "core:window:allow-unmaximize",
     "core:window:allow-unminimize",
-    "core:window:allow-set-decorations"
+    "core:window:allow-set-decorations",
+    "core:window:allow-set-size"
   ]
 }

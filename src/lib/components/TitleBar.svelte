@@ -152,8 +152,11 @@
 <style>
   .titlebar {
     height: 47px;
-    background: linear-gradient(138deg, rgba(32, 35, 91, 0.7) 22%, rgba(7, 9, 33, 0.7) 82%);
-    box-shadow: rgba(255, 255, 255, 0.1) 0px 1px 0px 0px inset, rgba(7, 13, 79, 0.05) 0px 0px 20px 3px, rgba(7, 13, 79, 0.05) 0px 0px 40px 20px, rgba(255, 255, 255, 0.06) 0px 0px 0px 1px inset;
+    background: linear-gradient(to bottom,
+      hsl(var(--background) / 0.9),
+      hsl(var(--background) / 0.8)
+    );
+    box-shadow: 0 1px 0 0 hsla(var(--border) / 0.1) inset;
     user-select: none;
     position: fixed;
     top: 0;
@@ -161,9 +164,21 @@
     right: 0;
     z-index: 50;
     border-bottom: 1px solid var(--border);
-    border-top-left-radius: 12px;
-    border-top-right-radius: 12px;
+    border-top-left-radius: inherit;
+    border-top-right-radius: inherit;
     transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  :global(.dark) .titlebar {
+    background: linear-gradient(to bottom,
+      hsl(var(--background) / 0.9),
+      hsl(var(--background) / 0.8)
+    );
+    box-shadow: 0 1px 0 0 hsla(var(--border) / 0.1) inset,
+                0 0 20px 3px hsla(var(--background) / 0.05),
+                0 0 40px 20px hsla(var(--background) / 0.05);
   }
 
   .titlebar.maximized {

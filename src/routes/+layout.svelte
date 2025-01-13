@@ -105,24 +105,38 @@
     background: transparent !important;
   }
 
+  :global(html.custom-titlebar-enabled.maximized),
+  :global(body.custom-titlebar-enabled.maximized) {
+    background: hsl(var(--background)) !important;
+  }
+
   .window-container {
-    width: 100vw;
-    height: 100vh;
+    width: calc(100vw + 20px);
+    height: calc(100vh + 10px);
     box-sizing: border-box;
     display: flex;
     align-items: center;
     justify-content: center;
     position: relative;
-    background-color: hsl(var(--background));
+    background-color: transparent;
+    margin-top: -6px;
+    margin-left: -10px;
   }
 
   .window-container.custom-titlebar {
     padding: var(--window-padding, 10px);
+    padding-top: 4px;
     background: transparent;
   }
 
   .window-container.maximized {
-    padding: 0;
+    width: 100vw !important;
+    height: 100vh !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    position: fixed !important;
+    inset: 0 !important;
+    background-color: hsl(var(--background)) !important;
   }
 
   .window-container.resizing .window {
@@ -131,10 +145,7 @@
 
   .window-background {
     position: absolute;
-    top: var(--window-padding, 10px);
-    left: var(--window-padding, 10px);
-    right: var(--window-padding, 10px);
-    bottom: var(--window-padding, 10px);
+    inset: 4px var(--window-padding, 10px) var(--window-padding, 10px) var(--window-padding, 10px);
     border-radius: var(--window-border-radius, 12px);
     background: transparent;
     pointer-events: none;
@@ -142,11 +153,10 @@
   }
 
   .maximized .window-background {
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    position: fixed;
+    inset: 0;
     border-radius: 0;
+    background-color: hsl(var(--background));
   }
 
   .window {
@@ -171,8 +181,14 @@
   }
 
   .maximized .window.custom-titlebar {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
     border-radius: 0;
     box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 
   .window-content {
@@ -182,6 +198,19 @@
     border-bottom-left-radius: inherit;
     border-bottom-right-radius: inherit;
     background-color: inherit;
+  }
+
+  .maximized .window-content {
+    border-radius: 0;
+    margin: 0;
+    padding-top: 47px;
+    width: 100vw;
+    height: calc(100vh - 47px);
+    position: fixed;
+    top: 47px;
+    left: 0;
+    right: 0;
+    bottom: 0;
   }
 
   .app-icon {
