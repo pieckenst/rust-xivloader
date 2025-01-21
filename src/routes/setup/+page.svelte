@@ -12,12 +12,22 @@
     import { appLocalDataDir } from "@tauri-apps/api/path";
     import { gameConfig } from '$lib/stores/game-config';
     import { logStore, type LogEntry } from '$lib/stores/log-store';
-    import { Home, Settings, Download, FileText, Globe, Gamepad2, Wrench, Terminal, Languages, ScrollText, Palette } from "lucide-svelte";
     import { settings, saveSettings } from '$lib/stores/settings-store';
+    import { cloudBackup, AUTO_SYNC_COOLDOWN, lastSettingsSyncStore, lastGameConfigSyncStore } from '$lib/stores/cloud-backup-store';
     import { getCurrentWindow } from '@tauri-apps/api/window';
     import { onMount } from 'svelte';
-    import { writable } from 'svelte/store';
-  
+    import { writable, get } from 'svelte/store';
+    import { 
+        Settings, 
+        Gamepad2, 
+        Languages, 
+        ScrollText, 
+        Palette,
+        Cloud 
+    } from "lucide-svelte";
+    import * as AlertDialog from "$lib/components/ui/alert-dialog/index.js";
+    import { toast } from 'svelte-sonner';
+
     let gamePath = $gameConfig.gamePath;
     let isSteam = $gameConfig.isSteam;
     let statusString = "Ready to launch";
@@ -34,6 +44,16 @@
     let dalamudDevPluginPath = "";
     let dalamudAssetPath = "";
 
+    let cloudEmail = '';
+    let cloudPassword = '';
+    let isRegistering = false;
+
+    let pendingCredentialsSync = false;
+
+    let showCredentialsSyncDialog = false;
+
+    let hasInitializedCloudBackup = false;
+
     const sidebarItems = [
       {
         name: "Game Settings",
@@ -49,6 +69,11 @@
         name: "Appearance",
         icon: Palette,
         id: "appearance"
+      },
+      {
+        name: "Cloud Backup",
+        icon: Cloud,
+        id: "cloud-backup"
       },
       {
         name: "Language",
@@ -73,15 +98,22 @@
             dalamudPath = xivlauncherDir;
             logStore.addLog(`Set Dalamud path to: ${xivlauncherDir}`);
         } catch (error) {
-            logStore.addLog(`Failed to get AppData path: ${error}`);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            logStore.addLog(`Failed to get AppData path: ${errorMessage}`);
+            console.error('Failed to initialize Dalamud paths:', error);
         }
     }
 
     function formatDisplayLog(entry: LogEntry): string {
-        const icon = entry.type === 'error' ? '❌' :
-                     entry.type === 'success' ? '✅' :
-                     entry.type === 'start' ? '📝' : 'ℹ️';
-        return `[${entry.timestamp}] ${icon} ${entry.message}`;
+        try {
+            const icon = entry.type === 'error' ? '❌' :
+                        entry.type === 'success' ? '✅' :
+                        entry.type === 'start' ? '📝' : 'ℹ️';
+            return `[${entry.timestamp}] ${icon} ${entry.message}`;
+        } catch (error) {
+            console.error('Error formatting log entry:', error);
+            return '[ERROR] Failed to format log entry';
+        }
     }
 
     async function handleLaunch() {
@@ -132,12 +164,19 @@
                 }
             }
             statusString = `Launch failed: ${errorMessage}`;
+            console.error('Game launch error:', error);
         }
     }
   
     function handleBack() {
-        logStore.addLog("Navigating back to login page");
-        goto("/login");
+        try {
+            logStore.addLog("Navigating back to login page");
+            goto("/login");
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            logStore.addLog(`Failed to navigate back: ${errorMessage}`);
+            console.error('Navigation error:', error);
+        }
     }
 
     async function toggleCustomTitlebar(checked: boolean) {
@@ -157,15 +196,123 @@
                 useCustomTitlebar: checked
             });
         } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
             console.error('Failed to toggle window decorations:', error);
-            logStore.addLog(`Failed to toggle window decorations: ${error}`);
+            logStore.addLog(`Failed to toggle window decorations: ${errorMessage}`);
+            // Revert the UI state if the operation failed
+            $settings.useCustomTitlebar = !checked;
         }
     }
 
+    // Subscribe to settings changes - but only initialize once
+    $: if ($settings && !hasInitializedCloudBackup) {
+        logStore.addLog('Setup page: Settings updated');
+        if ($settings.cloudBackupEnabled && !$cloudBackup.initialSyncComplete) {
+            hasInitializedCloudBackup = true;  // Set flag before initializing
+            initializeCloudBackup();
+        }
+    }
+
+    async function initializeCloudBackup() {
+        try {
+            logStore.addLog('Setup page: Initializing cloud backup');
+            if ($settings.cloudBackupEnabled && $cloudBackup.isLoggedIn) {
+                // Restore settings from cloud if this is the first sync
+                if (!$cloudBackup.initialSyncComplete) {
+                    logStore.addLog('Setup page: First launch with cloud backup, restoring settings');
+                    const restored = await cloudBackup.restoreFromCloud();
+                    if (restored) {
+                        logStore.addLog('Setup page: Successfully restored settings from cloud');
+                        toast.success('Settings restored from cloud backup');
+                    }
+                }
+            }
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            logStore.addLog(`Setup page: Failed to initialize cloud backup: ${errorMessage}`);
+        }
+    }
+
+    async function initializeSetupPage() {
+        try {
+            logStore.addLog('[Setup] Starting initialization sequence');
+            
+            // First wait for local settings to fully load
+            logStore.addLog('[Setup] Waiting for local settings to stabilize (20s)...');
+            await new Promise(resolve => setTimeout(resolve, 20000));
+            
+            // Load local settings
+            await initializeSettings();
+            logStore.addLog('[Setup] Local settings loaded');
+
+            // Check if cloud backup should be enabled based on local settings
+            if ($settings.cloudBackupEnabled && !hasInitializedCloudBackup) {
+                logStore.addLog('[Setup] Cloud backup enabled in local settings, starting cloud initialization');
+                hasInitializedCloudBackup = true;
+                
+                // Initialize cloud backup first
+                await cloudBackup.initialize();
+                logStore.addLog('[Setup] Cloud backup initialized');
+
+                // Check if we have credentials to sync
+                const hasCredentials = $gameConfig.username && $gameConfig.password;
+                logStore.addLog(`[Setup] Credentials check - Has credentials: ${!!hasCredentials}`);
+                
+                // If cloud backup is logged in, handle syncing
+                if ($cloudBackup.isLoggedIn) {
+                    logStore.addLog('[Setup] Cloud backup logged in, checking sync requirements');
+                    
+                    // If we have credentials and sync is enabled, sync them first
+                    if (hasCredentials && $settings.cloudBackupCredentialsSync) {
+                        logStore.addLog('[Setup] Syncing credentials first');
+                        await cloudBackup.syncToCloud();
+                        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s between operations
+                    }
+
+                    // Then sync other settings
+                    logStore.addLog('[Setup] Syncing general settings');
+                    await cloudBackup.syncToCloud();
+                    await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s between operations
+                    
+                    // After syncing, check if we need to restore
+                    if (!$cloudBackup.initialSyncComplete) {
+                        logStore.addLog('[Setup] First launch detected, attempting restore');
+                        const restored = await cloudBackup.restoreFromCloud();
+                        if (restored) {
+                            logStore.addLog('[Setup] Successfully restored settings from cloud');
+                            toast.success('Settings restored from cloud backup');
+                        }
+                    } else {
+                        logStore.addLog('[Setup] Not first launch, skipping restore');
+                    }
+                } else {
+                    logStore.addLog('[Setup] Cloud backup not logged in, skipping sync/restore');
+                }
+            } else {
+                logStore.addLog('[Setup] Cloud backup not enabled in local settings or already initialized');
+            }
+
+            logStore.addLog('[Setup] Initialization sequence completed');
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            logStore.addLog(`[Setup] Initialization failed: ${errorMessage}`);
+            if (error instanceof Error && error.stack) {
+                logStore.addLog(`[Setup] Error stack: ${error.stack}`);
+            }
+            toast.error('Failed to initialize setup page');
+        }
+    }
+
+    onMount(() => {
+        logStore.addLog('Setup page: Component mounted');
+        initializeSetupPage();
+    });
+
     // Initialize window decorations based on settings
-    onMount(async () => {
+    async function initializeSettings() {
         const window = await getCurrentWindow();
         try {
+            logStore.addLog('[Setup] Initializing window decorations');
             if ($settings.useCustomTitlebar) {
                 await window.setDecorations(false);
                 document.body.classList.add('titlebar-enabled');
@@ -173,11 +320,19 @@
                 await window.setDecorations(true);
                 document.body.classList.remove('titlebar-enabled');
             }
+            logStore.addLog('[Setup] Window decorations initialized');
         } catch (error) {
-            console.error('Failed to initialize window decorations:', error);
-            logStore.addLog(`Failed to initialize window decorations: ${error}`);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error('[Setup] Failed to initialize:', error);
+            logStore.addLog(`[Setup] Failed to initialize window decorations: ${errorMessage}`);
+            try {
+                await window.setDecorations(true);
+                document.body.classList.remove('titlebar-enabled');
+            } catch (recoveryError) {
+                console.error('[Setup] Failed to recover from initialization error:', recoveryError);
+            }
         }
-    });
+    }
 
     // Initialize preview settings store
     const previewSettings = writable({
@@ -212,41 +367,134 @@
             await saveSettings(newSettings);
             
             // Dispatch a custom event to notify layout about titlebar changes
-            await window.emit('titlebar-settings-changed', newSettings);
+            await window.emit('titlebar-settings-changed', {
+                useCustomTitlebar: $settings.useCustomTitlebar,
+                centerTitle: $settings.centerTitle,
+                showMinimize: $settings.showMinimize,
+                showMaximize: $settings.showMaximize
+            });
             
             logStore.addLog("Titlebar settings applied successfully");
+
+            // Update window decorations based on settings
+            if (newSettings.useCustomTitlebar) {
+                logStore.addLog('Enabling custom titlebar');
+                await window.setDecorations(false);
+                document.documentElement.classList.add('custom-titlebar-enabled');
+                document.body.classList.add('titlebar-enabled');
+            } else {
+                logStore.addLog('Disabling custom titlebar');
+                await window.setDecorations(true);
+                document.documentElement.classList.remove('custom-titlebar-enabled');
+                document.body.classList.remove('titlebar-enabled');
+            }
+
+            // Update maximized state
+            const isMaximized = await window.isMaximized();
+            if (isMaximized) {
+                document.documentElement.classList.add('maximized');
+                document.body.classList.add('maximized');
+            }
         } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
             console.error('Failed to apply titlebar settings:', error);
-            logStore.addLog(`Failed to apply titlebar settings: ${error}`);
+            logStore.addLog(`Failed to apply titlebar settings: ${errorMessage}`);
+            // Revert preview settings to match current settings
+            previewSettings.set({
+                centerTitle: $settings.centerTitle,
+                showMinimize: $settings.showMinimize,
+                showMaximize: $settings.showMaximize
+            });
+        }
+    }
+
+    async function handleCloudLogin() {
+        try {
+            const success = await cloudBackup.login(cloudEmail, cloudPassword);
+            if (success) {
+                cloudEmail = '';
+                cloudPassword = '';
+                // Restore settings after successful login
+                await cloudBackup.restoreFromCloud();
+            }
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error('Cloud login error:', error);
+            logStore.addLog(`Cloud login failed: ${errorMessage}`);
+        }
+    }
+
+    async function handleCloudRegister() {
+        try {
+            const success = await cloudBackup.register(cloudEmail, cloudPassword);
+            if (success) {
+                cloudEmail = '';
+                cloudPassword = '';
+                isRegistering = false;
+            }
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error('Cloud registration error:', error);
+            logStore.addLog(`Cloud registration failed: ${errorMessage}`);
+        }
+    }
+
+    async function handleCloudLogout() {
+        try {
+            await cloudBackup.logout();
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error('Cloud logout error:', error);
+            logStore.addLog(`Cloud logout failed: ${errorMessage}`);
+        }
+    }
+
+    async function handleAutoSync(type: 'settings' | 'gameConfig') {
+        try {
+            if ($cloudBackup.autoSync && $cloudBackup.enabled) {
+                const now = Date.now();
+                
+                // Check if we should skip based on type and cooldown
+                if (type === 'settings' && now - get(lastSettingsSyncStore) < AUTO_SYNC_COOLDOWN) {
+                    return; // Skip if within settings cooldown
+                }
+                if (type === 'gameConfig' && now - get(lastGameConfigSyncStore) < AUTO_SYNC_COOLDOWN) {
+                    return; // Skip if within game config cooldown
+                }
+                if (type === 'gameConfig' && !$cloudBackup.syncCredentials) {
+                    return; // Don't sync game config if credentials sync is disabled
+                }
+
+                await cloudBackup.syncToCloud();
+                logStore.addLog(`Auto-synced ${type} to cloud`);
+            }
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            console.error('Auto-sync error:', error);
+            logStore.addLog(`Auto-sync failed: ${errorMessage}`);
         }
     }
 </script>
 
 <div class="container flex min-h-[calc(100vh-4rem)] items-center justify-center gap-4 py-6">
-  <Card.Root class="w-full max-w-[1200px] flex flex-col">
-    <Card.Header class="pb-0 flex flex-row items-center justify-between">
-      <div class="flex items-center gap-2">
-        <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-6 w-6 text-primary-foreground">
-            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-          </svg>
-        </div>
-        <div>
-          <Card.Title class="text-2xl">XIV Loader</Card.Title>
-          <Card.Description>Configure your game installation settings.</Card.Description>
-        </div>
-      </div>
-    </Card.Header>
-
-    <Card.Content class="flex flex-grow overflow-hidden pt-6">
-      <div class="flex h-[600px] w-full">
+  <Card.Root class="w-full max-w-[1200px] flex flex-col overflow-hidden">
+    <Card.Content class="flex flex-grow p-0">
+      <div class="flex h-[700px] w-full">
         <!-- Sidebar -->
-        <div class="hidden border-r md:block w-[240px] flex-shrink-0">
+        <div class="dark-sidebar bg-[#242424] border-r border-[#1a1a1a] md:block w-[240px] flex-shrink-0">
+          <div class="flex h-16 items-center gap-2 px-4 border-b border-[#1a1a1a]">
+            <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 text-primary-foreground">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+              </svg>
+            </div>
+            <div class="font-semibold text-white">XIV Loader</div>
+          </div>
           <nav class="grid gap-1 p-2">
             {#each sidebarItems as item}
               <button 
-                class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-muted
-                       {activeSection === item.id ? 'bg-muted' : ''}"
+                class="sidebar-btn flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors text-[#e6e6e6]
+                       hover:bg-[#3a3a3a] {activeSection === item.id ? 'bg-[#3a3a3a]' : ''}"
                 on:click={() => activeSection = item.id}
               >
                 <svelte:component this={item.icon} class="h-4 w-4" />
@@ -257,7 +505,7 @@
         </div>
 
         <!-- Main Content -->
-        <main class="flex-1 flex flex-col overflow-hidden">
+        <main class="flex-1 flex flex-col overflow-hidden bg-background">
           <header class="flex h-16 shrink-0 items-center border-b px-6">
             <h2 class="text-lg font-semibold">
               {sidebarItems.find(item => item.id === activeSection)?.name}
@@ -473,6 +721,170 @@
                   </div>
                 {/if}
               </div>
+            {:else if activeSection === 'cloud-backup'}
+              <div class="space-y-6">
+                {#if !$cloudBackup.isLoggedIn}
+                  <div class="space-y-4">
+                    <div class="flex items-center justify-between mb-4">
+                      <h3 class="text-lg font-semibold">
+                        {isRegistering ? 'Create Account' : 'Login to Cloud Backup'}
+                      </h3>
+                      <button 
+                        class={buttonVariants({ variant: "ghost" })}
+                        on:click={() => isRegistering = !isRegistering}
+                      >
+                        {isRegistering ? 'Back to Login' : 'Create Account'}
+                      </button>
+                    </div>
+
+                    <div class="space-y-2">
+                      <Label for="cloudEmail">Email</Label>
+                      <Input 
+                        id="cloudEmail" 
+                        type="email"
+                        bind:value={cloudEmail}
+                        placeholder="Enter your email"
+                      />
+                    </div>
+
+                    <div class="space-y-2">
+                      <Label for="cloudPassword">Password</Label>
+                      <Input 
+                        id="cloudPassword" 
+                        type="password"
+                        bind:value={cloudPassword}
+                        placeholder="Enter your password"
+                      />
+                    </div>
+
+                    <button 
+                      class={buttonVariants()} 
+                      on:click={isRegistering ? handleCloudRegister : handleCloudLogin}
+                    >
+                      {isRegistering ? 'Create Account' : 'Login to Cloud Backup'}
+                    </button>
+
+                    {#if isRegistering}
+                      <div class="text-sm text-muted-foreground mt-2">
+                        By creating an account, you agree to store your settings in the cloud.
+                        Your data will be encrypted and can be deleted at any time.
+                      </div>
+                    {/if}
+                  </div>
+                {:else}
+                  <div class="space-y-4">
+                    <div class="flex items-center justify-between">
+                      <div class="space-y-0.5">
+                        <Label>Cloud Backup</Label>
+                        <div class="text-sm text-muted-foreground">
+                          Backup your settings and game credentials to the cloud
+                        </div>
+                      </div>
+                      <Switch 
+                        checked={$cloudBackup.enabled}
+                        onCheckedChange={(checked) => cloudBackup.toggleCloudBackup(checked)}
+                      />
+                    </div>
+
+                    {#if $cloudBackup.enabled}
+                      <div class="space-y-4">
+                        <div class="flex items-center justify-between">
+                          <div class="space-y-0.5">
+                            <Label>Auto Sync</Label>
+                            <div class="text-sm text-muted-foreground">
+                              Automatically sync settings when changes are made
+                            </div>
+                          </div>
+                          <Switch 
+                            checked={$cloudBackup.autoSync}
+                            onCheckedChange={(checked) => cloudBackup.toggleAutoSync(checked)}
+                          />
+                        </div>
+
+                        <div class="flex flex-row items-center justify-between rounded-lg border p-4">
+                          <div class="space-y-0.5">
+                            <Label>Credentials Sync</Label>
+                            <div class="text-sm text-muted-foreground">
+                              Include login credentials in cloud backup (encrypted)
+                            </div>
+                            <div class="text-xs text-yellow-500">
+                              Warning: Only enable if you trust this service
+                            </div>
+                          </div>
+                          <div class="flex items-center gap-2">
+                            <Switch 
+                              checked={$cloudBackup.syncCredentials}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  showCredentialsSyncDialog = true;
+                                } else {
+                                  cloudBackup.toggleCredentialsSync(false);
+                                }
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        <AlertDialog.Root 
+                          bind:open={showCredentialsSyncDialog}
+                        >
+                          <AlertDialog.Content>
+                            <AlertDialog.Header>
+                              <AlertDialog.Title>Enable Credentials Sync?</AlertDialog.Title>
+                              <AlertDialog.Description>
+                                This will store your login credentials in the cloud (encrypted).
+                                Only enable this if you trust this service with your login information.
+                              </AlertDialog.Description>
+                            </AlertDialog.Header>
+                            <AlertDialog.Footer>
+                              <AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+                              <AlertDialog.Action>
+                                <button
+                                  class={buttonVariants()}
+                                  on:click={() => {
+                                    showCredentialsSyncDialog = false;
+                                    cloudBackup.toggleCredentialsSync(true);
+                                  }}
+                                >
+                                  Enable Sync
+                                </button>
+                              </AlertDialog.Action>
+                            </AlertDialog.Footer>
+                          </AlertDialog.Content>
+                        </AlertDialog.Root>
+
+                        <div class="rounded-lg border p-4">
+                          <div class="space-y-2">
+                            <div class="text-sm">
+                              Last synced: {$cloudBackup.lastSyncTimestamp ? new Date($cloudBackup.lastSyncTimestamp).toLocaleString() : 'Never'}
+                            </div>
+                            <div class="flex gap-2">
+                              <button 
+                                class={buttonVariants({ variant: "outline" })} 
+                                on:click={() => cloudBackup.syncToCloud()}
+                              >
+                                Sync Now
+                              </button>
+                              <button 
+                                class={buttonVariants({ variant: "outline" })} 
+                                on:click={() => cloudBackup.restoreFromCloud()}
+                              >
+                                Restore from Cloud
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    {/if}
+
+                    <div class="pt-2">
+                      <button class={buttonVariants({ variant: "outline", class: "text-destructive" })} on:click={handleCloudLogout}>
+                        Logout from Cloud Backup
+                      </button>
+                    </div>
+                  </div>
+                {/if}
+              </div>
             {:else if activeSection === 'language'}
               <div class="space-y-6">
                 <p class="text-muted-foreground">Language settings coming soon...</p>
@@ -559,7 +971,7 @@
   </Card.Root>
 </div>
 
-<style>
+<style lang="css">
   /* Custom scrollbar styling */
   :global(.overflow-y-auto) {
     scrollbar-width: thin;
@@ -629,5 +1041,38 @@
     left: unset !important;
     right: unset !important;
     z-index: 1 !important;
+  }
+
+  /* GNOME-style transitions for sidebar items */
+  :global(.sidebar-btn) {
+    transition: all 0.2s ease;
+  }
+
+  :global(.sidebar-btn:hover) {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  :global(.sidebar-btn:active) {
+    background-color: rgba(255, 255, 255, 0.15);
+  }
+
+  /* Dark sidebar scrollbar */
+  :global(.dark-sidebar .overflow-y-auto) {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  }
+
+  :global(.dark-sidebar .overflow-y-auto::-webkit-scrollbar) {
+    width: 6px;
+  }
+
+  :global(.dark-sidebar .overflow-y-auto::-webkit-scrollbar-track) {
+    background: transparent;
+  }
+
+  :global(.dark-sidebar .overflow-y-auto::-webkit-scrollbar-thumb) {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    border: transparent;
   }
 </style>

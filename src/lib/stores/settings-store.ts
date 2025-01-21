@@ -1,5 +1,6 @@
 import { writable } from 'svelte/store';
 import { Store } from '@tauri-apps/plugin-store';
+import { logStore } from './log-store'; // Assuming logStore is imported from another file
 
 interface AppSettings {
   useCustomTitlebar: boolean;
@@ -7,6 +8,10 @@ interface AppSettings {
   centerTitle: boolean;
   showMinimize: boolean;
   showMaximize: boolean;
+  // Cloud backup settings
+  cloudBackupEnabled: boolean;
+  cloudBackupAutoSync: boolean;
+  cloudBackupCredentialsSync: boolean;
 }
 
 const defaultSettings: AppSettings = {
@@ -14,7 +19,11 @@ const defaultSettings: AppSettings = {
   theme: 'system',
   centerTitle: true,
   showMinimize: true,
-  showMaximize: true
+  showMaximize: true,
+  // Default cloud backup settings
+  cloudBackupEnabled: false,
+  cloudBackupAutoSync: false,
+  cloudBackupCredentialsSync: false
 };
 
 let store: Store;
@@ -29,11 +38,14 @@ async function loadSettings() {
     const storedSettings = await store.get<AppSettings>('settings');
     if (storedSettings) {
       settings.set(storedSettings);
+      logStore.addLog('Settings loaded successfully');
     } else {
       await store.set('settings', defaultSettings);
+      logStore.addLog('Default settings applied');
     }
   } catch (error) {
     console.error('Failed to load settings:', error);
+    logStore.addLog(`Failed to load settings: ${error}`);
   }
 }
 
@@ -43,11 +55,14 @@ async function saveSettings(newSettings: AppSettings) {
     if (!store) {
       store = await Store.load('settings.json');
     }
+    console.log('New settings:', newSettings); // Log the new settings
     await store.set('settings', newSettings);
     settings.set(newSettings);
     await store.save(); // Ensure changes are persisted
+    logStore.addLog('Settings saved successfully');
   } catch (error) {
     console.error('Failed to save settings:', error);
+    logStore.addLog(`Failed to save settings: ${error}`);
   }
 }
 

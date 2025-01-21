@@ -18,6 +18,8 @@
   import { open } from '@tauri-apps/plugin-shell';
   import { Loader2 } from "lucide-svelte";
   import * as Tabs from "$lib/components/ui/tabs/index.js";
+  import { cloudBackup } from  '$lib/stores/cloud-backup-store';
+  import { settings } from '$lib/stores/settings-store';
 
   let username = '';
   let password = '';
@@ -27,6 +29,25 @@
   let banners: any[] = [];
   let currentBanner = 0;
   let newsLoaded = false;
+  let isLoading = false;
+  let bannerInterval: number;
+  let hasRestoredCredentials = false;
+
+  // Subscribe to settings changes - but only restore once
+  $: if ($settings && !hasRestoredCredentials) {
+    logStore.addLog('[Login] Settings changed, current state:');
+    logStore.addLog(`[Login] Cloud Backup Enabled: ${$settings.cloudBackupEnabled}`);
+    logStore.addLog(`[Login] Cloud Backup Logged In: ${$cloudBackup.isLoggedIn}`);
+    logStore.addLog(`[Login] Cloud Backup Credentials Sync: ${$settings.cloudBackupCredentialsSync}`);
+    
+    if ($settings.cloudBackupEnabled && $cloudBackup.isLoggedIn && $settings.cloudBackupCredentialsSync) {
+      logStore.addLog('[Login] All conditions met for credentials restore');
+      hasRestoredCredentials = true;  // Set flag before loading
+      loadCloudBackup();
+    } else {
+      logStore.addLog('[Login] Conditions not met for credentials restore');
+    }
+  }
 
   const formSchema = z.object({
     username: z.string().min(1, "Username is required"),
@@ -42,77 +63,220 @@
     otp: ''
   };
 
+  // Bind username and password to formData
+  $: username = formData.username;
+  $: password = formData.password;
+
   let formErrors: { [key: string]: string[] } = {};
 
   function validateForm() {
-    const result = formSchema.safeParse(formData);
-    if (!result.success) {
+    logStore.addLog('Validating login form');
+    try {
+      const result = formSchema.safeParse(formData);
+      if (!result.success) {
+        formErrors = {};
+        result.error.errors.forEach((error) => {
+          const path = error.path[0] as string;
+          if (!formErrors[path]) {
+            formErrors[path] = [];
+          }
+          formErrors[path].push(error.message);
+          logStore.addLog(`Form validation error: ${path} - ${error.message}`);
+        });
+        toast.error('Please check the form for errors');
+        return false;
+      }
       formErrors = {};
-      result.error.errors.forEach((error) => {
-        const path = error.path[0] as string;
-        if (!formErrors[path]) {
-          formErrors[path] = [];
-        }
-        formErrors[path].push(error.message);
-      });
+      logStore.addLog('Form validation successful');
+      return true;
+    } catch (error) {
+      logStore.addLog(`Form validation error: ${error instanceof Error ? error.message : String(error)}`);
+      toast.error('An error occurred while validating the form');
       return false;
     }
-    formErrors = {};
-    return true;
   }
 
-  function handleSubmit(event: Event) {
+  async function handleSubmit(event: Event) {
     event.preventDefault();
-    if (validateForm()) {
-      username = formData.username;
-      password = formData.password;
-      otp = formData.otp || '';
-      handleNext();
+    isLoading = true;
+    logStore.addLog('Processing login form submission');
+    
+    try {
+      if (validateForm()) {
+        username = formData.username;
+        password = formData.password;
+        otp = formData.otp || '';
+        await handleNext();
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logStore.addLog(`Login form submission error: ${errorMessage}`);
+      toast.error('Failed to process login form');
+    } finally {
+      isLoading = false;
     }
   }
 
-  onMount(async () => {
+  // Initialize cloud backup and load credentials
+  async function loadCloudBackup() {
     try {
-      headlines = await invoke('get_news', { language: 1, forceNa: false });
-      banners = await invoke('get_banners', { language: 1, forceNa: false });
-      newsLoaded = true;
+      logStore.addLog('[Login] Starting cloud backup load');
+      logStore.addLog(`[Login] Initial username: ${formData.username ? 'SET' : 'EMPTY'}`);
+      logStore.addLog(`[Login] Initial password: ${formData.password ? 'SET' : 'EMPTY'}`);
+
+      if ($settings.cloudBackupEnabled && $cloudBackup.isLoggedIn && $settings.cloudBackupCredentialsSync) {
+        logStore.addLog('[Login] Attempting to restore credentials');
+        const restored = await cloudBackup.restoreCredentials();
+        
+        if (restored) {
+          const beforeUsername = formData.username;
+          const beforePassword = formData.password;
+          
+          // Update form data from game config
+          formData.username = $gameConfig.username;
+          formData.password = $gameConfig.password;
+          
+          // Log the changes
+          logStore.addLog(`[Login] Username changed: ${beforeUsername !== formData.username}`);
+          logStore.addLog(`[Login] Password changed: ${beforePassword !== formData.password}`);
+          logStore.addLog(`[Login] Final username: ${formData.username ? 'SET' : 'EMPTY'}`);
+          logStore.addLog(`[Login] Final password: ${formData.password ? 'SET' : 'EMPTY'}`);
+          
+          // Treat unchanged values as an error
+          if (beforeUsername === formData.username && beforePassword === formData.password) {
+            const error = new Error('Credentials did not change after restore');
+            console.error('[Login] Restore error:', error);
+            logStore.addLog(`[Login] Error: Credentials did not change after restore`);
+            throw error;
+          }
+          
+          username = formData.username;
+          password = formData.password;
+          
+          logStore.addLog('[Login] Successfully restored and updated credentials');
+          toast.success('Credentials restored from cloud backup');
+        } else {
+          logStore.addLog('[Login] No credentials found in cloud backup');
+        }
+      } else {
+        logStore.addLog('[Login] Conditions changed during restore:');
+        logStore.addLog(`[Login] Cloud Backup Enabled: ${$settings.cloudBackupEnabled}`);
+        logStore.addLog(`[Login] Cloud Backup Logged In: ${$cloudBackup.isLoggedIn}`);
+        logStore.addLog(`[Login] Cloud Backup Credentials Sync: ${$settings.cloudBackupCredentialsSync}`);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('[Login] Cloud backup error:', error);
+      logStore.addLog(`[Login] Failed to initialize cloud backup: ${errorMessage}`);
+      if (error instanceof Error && error.stack) {
+        logStore.addLog(`[Login] Error stack: ${error.stack}`);
+      }
+      toast.error('Failed to restore credentials from cloud backup');
+    }
+  }
+
+  async function initializeLoginPage() {
+    try {
+      logStore.addLog('Starting login page initialization');
       
+      // Initialize settings first
+      if ($settings.cloudBackupEnabled && !hasRestoredCredentials) {
+        logStore.addLog('Cloud backup is enabled, initializing...');
+        hasRestoredCredentials = true;  // Set flag before loading
+        await loadCloudBackup();
+      } else {
+        logStore.addLog('Cloud backup is disabled or credentials already restored');
+      }
+
+      // Then load news and banners
+      const [newsData, bannerData] = await Promise.all([
+        invoke('get_news', { language: 1, forceNa: false })
+          .catch(error => {
+            logStore.addLog(`Failed to fetch news: ${error}`);
+            return null;
+          }),
+        invoke('get_banners', { language: 1, forceNa: false })
+          .catch(error => {
+            logStore.addLog(`Failed to fetch banners: ${error}`);
+            return [];
+          })
+      ]);
+
+      headlines = newsData;
+      banners = bannerData as any[];
+      newsLoaded = true;
+      logStore.addLog('Successfully loaded news and banners');
+    
       // Rotate banners every 8 seconds
-      setInterval(() => {
+      bannerInterval = setInterval(() => {
         currentBanner = (currentBanner + 1) % banners.length;
       }, 8000);
     } catch (error) {
-      logStore.addLog(`Failed to load news: ${error}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logStore.addLog(`Failed to initialize login page: ${errorMessage}`);
+      toast.error('Failed to initialize login page');
     }
+  }
+
+  onMount(() => {
+    logStore.addLog('Initializing login page');
+    initializeLoginPage();
+
+    return () => {
+      if (bannerInterval) clearInterval(bannerInterval);
+    };
   });
 
-  function handleNext() {
-    $gameConfig.username = username;
-    $gameConfig.password = password;
-    $gameConfig.otp = otp;
-    logStore.addLog("Credentials saved, navigating to setup page");
-    goto("/setup", { replaceState: true });
+  async function handleNext() {
+    logStore.addLog('Saving credentials and navigating to setup');
+    try {
+      $gameConfig.username = username;
+      $gameConfig.password = password;
+      $gameConfig.otp = otp;
+      logStore.addLog("Credentials saved successfully");
+      await goto("/setup", { replaceState: true });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logStore.addLog(`Failed to process credentials: ${errorMessage}`);
+      toast.error('Failed to save credentials');
+      throw error;
+    }
   }
 
   function handleBack() {
     logStore.addLog("Navigating back to main page");
-    goto("/", { replaceState: true });
+    try {
+      goto("/", { replaceState: true });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logStore.addLog(`Failed to navigate back: ${errorMessage}`);
+      toast.error('Failed to navigate back');
+    }
   }
 
   async function handleNewsClick(url: string, event: MouseEvent) {
     event.preventDefault();
+    logStore.addLog(`Attempting to open URL: ${url}`);
     try {
       await open(url);
+      logStore.addLog('Successfully opened URL');
     } catch (error) {
-      logStore.addLog(`Failed to open URL: ${error}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logStore.addLog(`Failed to open URL: ${errorMessage}`);
+      toast.error('Failed to open URL');
     }
   }
 
   function validateOtpInput(value: string): boolean {
-    return /^\d*$/.test(value);
+    const isValid = /^\d*$/.test(value);
+    if (!isValid) {
+      logStore.addLog('Invalid OTP input detected - non-numeric characters');
+    }
+    return isValid;
   }
 
   async function handleRegistration(type: 'general' | 'ffxiv') {
+    logStore.addLog(`Opening ${type} registration page`);
     const baseUrl = type === 'general' 
       ? 'https://secure.square-enix.com/oauth/oa/registligt'
       : 'https://secure.square-enix.com/account/app/svc/ffxivregister';
@@ -128,8 +292,11 @@
 
     try {
       await open(`${baseUrl}?${params.toString()}`);
+      logStore.addLog('Successfully opened registration page');
     } catch (error) {
-      logStore.addLog(`Failed to open registration page: ${error}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logStore.addLog(`Failed to open registration page: ${errorMessage}`);
+      toast.error('Failed to open registration page');
     }
   }
 </script>
