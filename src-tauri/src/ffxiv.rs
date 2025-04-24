@@ -1,7 +1,8 @@
 use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE, REFERER, USER_AGENT};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use sha1::{Digest, Sha1};
+use sha1::{Digest, Sha1}; // square enix login system requires sha1
+// after all square enix is small indie company
 use std::collections::HashMap;
 use std::env;
 use std::ffi::OsString;
