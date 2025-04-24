@@ -17,12 +17,16 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![
+        .invoke_handler(tauri::generate_handler![ 
+            // fully standard tauri handling
+            // ui cannot access any commands without putting it here
             greet,
             ffxiv::launch_game,
             ffxiv::get_news,
             ffxiv::get_banners
         ])
         .run(tauri::generate_context!())
+// standard tauri error handler
+       // not like rust supports any other way
         .expect("error while running tauri application");
 }
